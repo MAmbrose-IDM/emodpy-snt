@@ -7,8 +7,8 @@ def load_box_paths(user_path=None, country_name='Example'):
 
     if country_name == 'Example':
         home_path = user_path
-        data_path = home_path
-        project_path = os.path.join(home_path, 'example_files')
+        data_path = os.path.join(user_path, 'Documents', 'emodpy-snt', 'data', 'example_files')
+        project_path = os.path.join(user_path, 'Documents', 'emodpy-snt', 'data', 'example_files')
     elif country_name == 'SierraLeone':
         home_path = os.path.join(user_path, 'Dropbox (IDM)', 'Malaria Team Folder')
         data_path = os.path.join(home_path, 'data')

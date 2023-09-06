@@ -1,5 +1,7 @@
 import manifest
 import params
+import pathlib
+import os
 from idmtools.core.platform_factory import Platform
 from idmtools.entities.experiment import Experiment
 from idmtools.entities.templated_simulation import TemplatedSimulations
@@ -88,7 +90,6 @@ def run_experiment(**kwargs):
     experiment.run(wait_until_done=True)
     _post_run(experiment, **kwargs)
 
-
 if __name__ == "__main__":
     """
     - show_warnings_once=True:  show api warnings for only one simulation
@@ -99,10 +100,10 @@ if __name__ == "__main__":
     # platform = Platform('IDMCLOUD', node_group='emod_abcd')
 
     # If you don't have Eradication, un-comment out the following to download Eradication
-    # import emod_malaria.bootstrap as dtk
+    import emod_malaria.bootstrap as dtk
     # import pathlib
     # import os
-    # dtk.setup(pathlib.Path(manifest.eradication_path).parent)
-    # os.chdir(os.path.dirname(__file__))
-    # print("...done.")
+    dtk.setup(pathlib.Path(manifest.eradication_path).parent)
+    os.chdir(os.path.dirname(__file__))
+    print("...done.")
     run_experiment(show_warnings_once=True)
