@@ -25,8 +25,23 @@ def get_command(script="run_simulations.py", python_version: str=None):
         print("Unknown OS")
         raise Exception  
     return command
-    
-#
+
+# doing it manually because... too complicated otherwise? re
+expected_outputs = [r"monique\\calibration\\baseline_calibration\\01_serialize_transmission_sweep\\experiment_id.txt",
+               r"monique\\calibration\\baseline_calibration\\02_run_transmission_sweep\\experiment_id.txt",
+               r"monthly_U5_PfPR.csv",
+               r"..\\data\\example_files\\simulation_output\\calibration\\baseline_calibration\\LL_allxLH_each_admin_run\\CC_run3.csv",
+               r"..\\data\\example_files\\simulation_inputs\\larval_habitats\\monthly_habitats_1.csv",
+               r"monique\\calibration\\seasonality_calibration\\01_burnin_for_seasonalityCalib\\experiment_id.txt",
+               r"monique\\calibration\\seasonality_calibration\\02_seasonality_calibration\\experiment_id.txt",
+               r"monique\\run_to_present\\experiment_id.txt",
+               r"monique\\run_future_scenarios\\experiment_id.txt",
+               r"ben\\example\\run_1960-2004\\experiment_id.txt",
+               r"ben\\example\\run_2005-2022\\experiment_id.txt"]
+
+rule all:
+    input: expected_outputs
+
 # # monique\\calibration\\baseline_calibration\\ run
 baseline_calibration = r"monique\\calibration\\baseline_calibration\\"
 rule serialize_transmission_sweep:
@@ -62,7 +77,6 @@ rule analyze_ssmt_monthy_U5_PfPR:
     input: baseline_calibration + r"02_run_transmission_sweep\\experiment_id.txt",
             baseline_calibration + r"03_analyze_ssmt_monthly_U5_PfPR.py"
     output: touch(r"monthly_U5_PfPR.csv")
-    default_target: True
     run:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
@@ -74,7 +88,6 @@ rule analyze_ssmt_monthy_U5_PfPR:
 rule find_best_xLH_fits:
     output:
         touch(r"..\\data\\example_files\\simulation_output\\calibration\\baseline_calibration\\LL_allxLH_each_admin_run\\CC_run3.csv")
-    default_target: True
     run:
         shell(get_command(script=r"monique\\calibration\\baseline_calibration\\04_find_best_xLH_fits.py",
                           python_version=config['python_version']))
@@ -100,7 +113,6 @@ rule seasonality_calibration:
             seasonality_cal + r"02_seasonality_calibration\\params.py"
     output:
         touch(seasonality_cal + r"02_seasonality_calibration\\experiment_id.txt")
-    default_target: True
     run:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
@@ -112,7 +124,6 @@ rule save_best_seasonality_fit:
     input: seasonality_cal + r"\03_save_best_seasonality_fit.py"
     output:
         touch(r"..\\data\\example_files\\simulation_inputs\\larval_habitats\\monthly_habitats_1.csv")
-    default_target: True
     run:
         update_parameters_in_file(input[0], {"USER_PATH = ": f"USER_PATH = r'..\data'\n"})
         shell(get_command(script=seasonality_cal + r"03_save_best_seasonality_fit.py",
@@ -142,7 +153,6 @@ rule run_to_future:
     input: run_to_pre + r"experiment_id.txt",
             run_to_futu + r"params.py", run_to_futu + r"manifest.py"
     output: touch(run_to_futu + r"experiment_id.txt")
-    default_target: True
     run:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
@@ -160,7 +170,6 @@ run_1960_to_2004 = r"ben\\example\\run_1960-2004\\"
 rule run_1960_2004:
     input: run_1960_to_2004 + r"params.py", run_1960_to_2004 + r"manifest.py"
     output: touch(run_1960_to_2004 + r"experiment_id.txt")
-    default_target: True
     run:
         update_parameters_in_file(input[0], {"num_seeds = ": "num_seeds = 1 \n",
                                              "iopath = ": "iopath = 'ben/IO' \n",
@@ -175,7 +184,6 @@ rule run_2005_2022:
     input: run_1960_to_2004 + r"experiment_id.txt",
             run_2005_to_2022 + r"params.py", run_2005_to_2022 + r"manifest.py"
     output: touch(run_2005_to_2022 + r"experiment_id.txt")
-    default_target: True
     run:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
@@ -187,11 +195,7 @@ rule run_2005_2022:
                           python_version=config['python_version']))
 
 
-
-rule all:
-    input: r"monique\\calibration\\baseline_calibration\\02_run_transmission_sweep\\experiment_id.txt"
-
 rule clean_output:
     run:
-        os.remove(r"experiment_id.txt")
-        # os.remove(r"monique\\calibration\\baseline_calibration\\02_run_transmission_sweep\\experiment_id.txt")
+        for file in expected_outputs:
+            os.remove(file)

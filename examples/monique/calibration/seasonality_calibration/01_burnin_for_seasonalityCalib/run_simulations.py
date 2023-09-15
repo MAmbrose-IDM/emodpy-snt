@@ -38,8 +38,9 @@ def _post_run(experiment: Experiment, **kwargs):
     Return:
         None
     """
-    with open("monique\\calibration\\seasonality_calibration\\01_burnin_for_seasonalityCalib\\experiment_id.txt", "w") as fd:
-        fd.write(experiment.uid.hex)
+    if experiment.succeeded:
+        with open("monique\\calibration\\seasonality_calibration\\01_burnin_for_seasonalityCalib\\experiment_id.txt", "w") as fd:
+            fd.write(experiment.uid.hex)
 
     pass
 
