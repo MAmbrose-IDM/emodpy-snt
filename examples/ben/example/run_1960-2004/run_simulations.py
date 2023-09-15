@@ -42,8 +42,9 @@ def _post_run(experiment: Experiment, **kwargs):
     Return:
         None
     """
-    with open("ben\\example\\run_1960-2004\\experiment_id.txt", "w") as fd:
-        fd.write(experiment.uid.hex)
+    if experiment.succeeded:
+        with open("ben\\example\\run_1960-2004\\experiment_id.txt", "w") as fd:
+            fd.write(experiment.uid.hex)
     pass
 
 
