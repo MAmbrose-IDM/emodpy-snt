@@ -86,7 +86,7 @@ def run_experiment(**kwargs):
 
     experiment = _config_experiment(**kwargs)
     _pre_run(experiment, **kwargs)
-    experiment.run(wait_until_done=True, wait_on_done=False)
+    experiment.run(wait_until_done=True)
     _post_run(experiment, **kwargs)
 
 

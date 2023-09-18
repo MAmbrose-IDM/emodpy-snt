@@ -7,10 +7,15 @@ from shutil import move, copymode
 from os import fdopen, remove
 from update_lines import update_parameters_in_file
 
+# PLEASE NOTE: This file cannot run on multiple cores, the sharing of the update_parameters_in_file function
+# between rules creates catastrophic issues
+
 dirs = os.listdir()
 input_files = list()
 
 config['python_version'] = 0
+
+
 
 def get_command(script="run_simulations.py", python_version: str=None):
     # using pushd (i.e. cd into directory) to use script location as base dir, otherwise relative
@@ -28,19 +33,20 @@ def get_command(script="run_simulations.py", python_version: str=None):
 
 # doing it manually because... too complicated otherwise? re
 expected_outputs = [r"monique\\calibration\\baseline_calibration\\01_serialize_transmission_sweep\\experiment_id.txt",
-               r"monique\\calibration\\baseline_calibration\\02_run_transmission_sweep\\experiment_id.txt",
-               r"monthly_U5_PfPR.csv",
-               r"..\\data\\example_files\\simulation_output\\calibration\\baseline_calibration\\LL_allxLH_each_admin_run\\CC_run3.csv",
-               r"..\\data\\example_files\\simulation_inputs\\larval_habitats\\monthly_habitats_1.csv",
-               r"monique\\calibration\\seasonality_calibration\\01_burnin_for_seasonalityCalib\\experiment_id.txt",
-               r"monique\\calibration\\seasonality_calibration\\02_seasonality_calibration\\experiment_id.txt",
-               r"monique\\run_to_present\\experiment_id.txt",
-               r"monique\\run_future_scenarios\\experiment_id.txt",
-               r"ben\\example\\run_1960-2004\\experiment_id.txt",
-               r"ben\\example\\run_2005-2022\\experiment_id.txt"]
+                    r"monique\\calibration\\baseline_calibration\\02_run_transmission_sweep\\experiment_id.txt",
+                    r"monthly_U5_PfPR.csv",
+                    r"..\\data\\example_files\\simulation_output\\calibration\\baseline_calibration\\LL_allxLH_each_admin_run\\CC_run3.csv",
+                    r"..\\data\\example_files\\simulation_inputs\\larval_habitats\\monthly_habitats_1.csv",
+                    r"monique\\calibration\\seasonality_calibration\\01_burnin_for_seasonalityCalib\\experiment_id.txt",
+                    r"monique\\calibration\\seasonality_calibration\\02_seasonality_calibration\\experiment_id.txt",
+                    r"monique\\run_to_present\\experiment_id.txt",
+                    r"monique\\run_future_scenarios\\experiment_id.txt",
+                    r"ben\\example\\run_1960-2004\\experiment_id.txt",
+                    r"ben\\example\\run_2005-2022\\experiment_id.txt"]
 
 rule all:
     input: expected_outputs
+    default_target: True
 
 # # monique\\calibration\\baseline_calibration\\ run
 baseline_calibration = r"monique\\calibration\\baseline_calibration\\"
@@ -110,14 +116,17 @@ rule burnin_for_seasonalityCalib:
 
 rule seasonality_calibration:
     input: seasonality_cal + r"01_burnin_for_seasonalityCalib\\experiment_id.txt",
-            seasonality_cal + r"02_seasonality_calibration\\params.py"
+            seasonality_cal + r"02_seasonality_calibration\\params.py",
+            seasonality_cal + r"02_seasonality_calibration\\manifest.py"
     output:
         touch(seasonality_cal + r"02_seasonality_calibration\\experiment_id.txt")
     run:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1],{"burnin_ids = {{": f"burnin_ids = {{'AA': '{burnin_id}'}}\n"})
-        shell(get_command(script=seasonality_cal + r"01_serialize_transmission_sweep\\run_simulations.py",
+        update_parameters_in_file(input[2], {"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
+        shell(get_command(script=r"monique\\calibration\\seasonality_calibration\\02_seasonality_calibration\\run_calibration.py",
                           python_version=config['python_version']))
 
 rule save_best_seasonality_fit:
@@ -154,6 +163,7 @@ rule run_to_future:
             run_to_futu + r"params.py", run_to_futu + r"manifest.py"
     output: touch(run_to_futu + r"experiment_id.txt")
     run:
+        print("9\n")
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1], {"burnin_id = ": f"burnin_id = '{burnin_id}'\n",
@@ -171,6 +181,7 @@ rule run_1960_2004:
     input: run_1960_to_2004 + r"params.py", run_1960_to_2004 + r"manifest.py"
     output: touch(run_1960_to_2004 + r"experiment_id.txt")
     run:
+        print("10\n")
         update_parameters_in_file(input[0], {"num_seeds = ": "num_seeds = 1 \n",
                                              "iopath = ": "iopath = 'ben/IO' \n",
                                              "years = ": "years = 5 \n"})
@@ -185,6 +196,7 @@ rule run_2005_2022:
             run_2005_to_2022 + r"params.py", run_2005_to_2022 + r"manifest.py"
     output: touch(run_2005_to_2022 + r"experiment_id.txt")
     run:
+        print("11\n")
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1], {"burnin_id = ": f"burnin_id = '{burnin_id}'\n",
@@ -197,5 +209,6 @@ rule run_2005_2022:
 
 rule clean_output:
     run:
+        print("12\n")
         for file in expected_outputs:
             os.remove(file)
