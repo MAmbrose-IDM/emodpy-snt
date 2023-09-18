@@ -59,7 +59,7 @@ rule serialize_transmission_sweep:
     run:
         update_parameters_in_file(input[0],{"years = 30": f"years = 10\n",
                                             "num_seeds = ": "num_seeds = 1\n"})
-        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=baseline_calibration + r"01_serialize_transmission_sweep/run_simulations.py",
             python_version=config['python_version']))
@@ -75,7 +75,7 @@ rule run_transmission_sweep:
         update_parameters_in_file(input[1],{"burnin_id = =": f"burnin_id = '{burnin_id}'\n",
                                             "num_seeds = ": "num_seeds = 1\n",
                                             "num_burnin_seeds = ": "num_burnin_seeds = 1\n"})
-        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=baseline_calibration + r"02_run_transmission_sweep/run_simulations.py",
             python_version=config['python_version']))
@@ -110,7 +110,7 @@ rule burnin_for_seasonalityCalib:
         touch(seasonality_cal + r"01_burnin_for_seasonalityCalib/experiment_id.txt")
     run:
         update_parameters_in_file(input[0],{"years = 20": f"years = 5\n"})
-        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=seasonality_cal + r"01_burnin_for_seasonalityCalib/run_simulations.py",
             python_version=config['python_version']))
@@ -126,17 +126,17 @@ rule seasonality_calibration:
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1],{"burnin_ids = {{": f"burnin_ids = {{'AA': '{burnin_id}'}}\n"})
-        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=r"monique/calibration/seasonality_calibration/02_seasonality_calibration/run_calibration.py",
             python_version=config['python_version']))
 
 rule save_best_seasonality_fit:
-    input: seasonality_cal + r"\03_save_best_seasonality_fit.py"
+    input: seasonality_cal + r"/03_save_best_seasonality_fit.py"
     output:
         touch(r"../data/example_files/simulation_inputs/larval_habitats/monthly_habitats_1.csv")
     run:
-        update_parameters_in_file(input[0],{"USER_PATH = ": f"USER_PATH = r'..\data'\n"})
+        update_parameters_in_file(input[0],{"USER_PATH = ": f"USER_PATH = r'../data'\n"})
         shell(get_command(script=seasonality_cal + r"03_save_best_seasonality_fit.py",
             python_version=config['python_version']))
 
@@ -154,7 +154,7 @@ rule run_to_present:
                                             "num_seeds = ": "num_seeds = 1\n",
                                             "num_burnin_seeds = ": "num_burnin_seeds = 1\n",
                                             "ser_date = 30 * 365": "ser_date = 10 * 365\n"})
-        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=run_to_pre + r"run_simulations.py",
             python_version=config['python_version']))
@@ -168,14 +168,13 @@ rule run_to_future:
            run_to_futu + r"params.py",run_to_futu + r"manifest.py"
     output: touch(run_to_futu + r"experiment_id.txt")
     run:
-        print("9\n")
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1],{"burnin_id = ": f"burnin_id = '{burnin_id}'\n",
                                             "num_seeds = ": "num_seeds = 1\n",
                                             "num_burnin_seeds = ": "num_burnin_seeds = 1\n",
                                             "num_burnin_seeds_calib = 5": "num_burnin_seeds_calib = 1"})
-        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[2],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_id = None": "sif_id = 'dtk_sif.id'\n"})
         shell(get_command(script=run_to_futu + r"run_simulations.py",
             python_version=config['python_version']))
@@ -187,11 +186,10 @@ rule run_1960_2004:
     input: run_1960_to_2004 + r"params.py",run_1960_to_2004 + r"manifest.py"
     output: touch(run_1960_to_2004 + r"experiment_id.txt")
     run:
-        print("10\n")
         update_parameters_in_file(input[0],{"num_seeds = ": "num_seeds = 1 \n",
                                             "iopath = ": "iopath = 'ben/IO' \n",
                                             "years = ": "years = 5 \n"})
-        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'..\data'\n",
+        update_parameters_in_file(input[1],{"USER_PATH = ": f"USER_PATH = r'../data'\n",
                                             "sif_path = ": "sif_path = 'dtk_sif.id'\n"})
         shell(get_command(script=run_1960_to_2004 + r"run_simulations.py",
             python_version=config['python_version']))
@@ -203,7 +201,6 @@ rule run_2005_2022:
            run_2005_to_2022 + r"params.py",run_2005_to_2022 + r"manifest.py"
     output: touch(run_2005_to_2022 + r"experiment_id.txt")
     run:
-        print("11\n")
         with open(input[0]) as exp_id_file:
             burnin_id = exp_id_file.read()
         update_parameters_in_file(input[1],{"burnin_id = ": f"burnin_id = '{burnin_id}'\n",
@@ -216,6 +213,5 @@ rule run_2005_2022:
 
 rule clean_output:
     run:
-        print("12\n")
         for file in expected_outputs:
             os.remove(file)
