@@ -108,7 +108,7 @@ podTemplate(
 			echo "Running examples"
 				dir('examples') {
 					sh 'pip3 install snakemake'
-					sh 'snakemake --cores=10 --config python_version=python3'
+					sh 'snakemake --cores=1 --config python_version=python3'
 				}
 			}
 
