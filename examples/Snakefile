@@ -6,7 +6,7 @@ from tempfile import mkstemp
 from shutil import move, copymode
 from os import fdopen, remove
 from update_lines import update_parameters_in_file
-
+import emod_malaria.bootstrap as dtk
 # PLEASE NOTE: This file cannot run on multiple cores, the sharing of the update_parameters_in_file function
 # between rules creates catastrophic issues
 
@@ -43,6 +43,13 @@ expected_outputs = [r"monique/calibration/baseline_calibration/01_serialize_tran
                     r"monique/run_future_scenarios/experiment_id.txt",
                     r"ben/example/run_1960-2004/experiment_id.txt",
                     r"ben/example/run_2005-2022/experiment_id.txt"]
+
+download_folder = r"../download"
+onstart:
+    if not os.path.exists(download_folder + r"/schema.json"):
+        print("should be making download folder\n")
+        dtk.setup(download_folder)
+        os.chdir(os.path.dirname(__file__))
 
 rule all:
     input: expected_outputs
