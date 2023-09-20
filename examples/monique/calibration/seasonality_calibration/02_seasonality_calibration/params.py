@@ -15,7 +15,9 @@ max_incidence = 100
 # specify name of archetype's representative admin
 rep_admin = 'AA'
 # burn-in id should be listed for each of the archetypes
-burnin_ids = {'AA': '7c9195e8-3d0a-ee11-aa07-b88303911bc1'}
+burnin_ids = {
+    'AA': '7fbc7c53-c44d-ee11-aa0a-b88303911bc1'
+}
 
 # set whether this is the first or second set of calibrations for this archetype
 round_number = 1  # <-- user needs to specify which round this is to pick up from prior round. Starts at round_number=1
@@ -57,12 +59,12 @@ r_fourth = 0.001
 center_move_scale = 1 / 15
 center_move_scale_second = 1 / 25  # 1/20
 center_move_scale_fourth = 1 / 30
-sim_runs_per_param_set = 2  # outside of testing, generally 5
+sim_runs_per_param_set = 3  # outside of testing, generally 5
 sim_runs_per_param_set_second = 5  # 10
 sim_runs_per_param_set_fourth = 10  # 30
-max_iterations = 2  # outside of testing, generally 10
-max_iterations_second = 20
-max_iterations_fourth = 20
+max_iterations = 5  # outside of testing, generally 10
+max_iterations_second = 5   # 20
+max_iterations_fourth = 5   # 20
 samples_per_iteration = 8  # outside of testing, generally 40  # must be at least 8
 
 #############################################################################################################
