@@ -106,7 +106,8 @@ if __name__ == "__main__":
 
     # If you don't have Eradication, un-comment out the following to download Eradication
     # import emod_malaria.bootstrap as dtk
-    #
+    # import pathlib
+    # import os
     # dtk.setup(pathlib.Path(manifest.eradication_path).parent)
     # os.chdir(os.path.dirname(__file__))
     # print("...done.")
