@@ -384,7 +384,7 @@ def add_vacc_smc(campaign, start_days, coverages, target_group: dict = None,
                               vaccine_initial_effect=vacc_initial_effect,
                               vaccine_box_duration=vacc_box_duration,
                               vaccine_decay_time_constant=vacc_decay_duration / math.log(2),
-                              efficacy_is_multiplicative=False,
+                              efficacy_is_multiplicative=True,
                               broadcast_event=receiving_vaccine_event)
 
     return {'smc_cov': sum(coverages) / len(coverages),
@@ -521,7 +521,7 @@ def add_vaccdrug_pmc(campaign, start_days: list, coverages: list,
                                       vaccine_initial_effect=vaccine_initial_effect,
                                       vaccine_box_duration=vaccine_box_duration,
                                       vaccine_decay_time_constant=vaccine_decay_duration / math.log(2),
-                                      efficacy_is_multiplicative=False
+                                      efficacy_is_multiplicative=True
                                       )
         else:
             add_triggered_vaccine(campaign,
@@ -535,7 +535,7 @@ def add_vaccdrug_pmc(campaign, start_days: list, coverages: list,
                                   vaccine_initial_effect=vaccine_initial_effect,
                                   vaccine_box_duration=vaccine_box_duration,
                                   vaccine_decay_time_constant=vaccine_decay_duration / math.log(2),
-                                  efficacy_is_multiplicative=False
+                                  efficacy_is_multiplicative=True
                                   )
 
     return {'pmc_cov': sum(coverages) / len(coverages),
@@ -628,7 +628,7 @@ def add_vacc_pmc(campaign, start_days: list, coverages: list, target_group: dict
                                       vaccine_initial_effect=vaccine_initial_effect,
                                       vaccine_box_duration=vaccine_box_duration,
                                       vaccine_decay_time_constant=vaccine_decay_duration / math.log(2),
-                                      efficacy_is_multiplicative=False
+                                      efficacy_is_multiplicative=True
                                       )
 
         else:
@@ -645,7 +645,7 @@ def add_vacc_pmc(campaign, start_days: list, coverages: list, target_group: dict
                                   vaccine_initial_effect=vaccine_initial_effect,
                                   vaccine_box_duration=vaccine_box_duration,
                                   vaccine_decay_time_constant=vaccine_decay_duration / math.log(2),
-                                  efficacy_is_multiplicative=False
+                                  efficacy_is_multiplicative=True
                                   )
 
     return {'pmc_cov': sum(coverages) / len(coverages),
