@@ -54,6 +54,8 @@ def habitat_scales(project_path):
 
 def set_input_files(config, hfca, archetype_hfca, population_size=1000):
     config.parameters.Climate_Model = "CLIMATE_CONSTANT"
+    config.parameters.Base_Air_Temperature = 25
+    config.parameters.Base_Land_Temperature = 25
     config.parameters["DS"] = hfca
     config.parameters["Archetype"] = archetype_hfca
     return {'DS': hfca}
