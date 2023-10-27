@@ -1,4 +1,5 @@
 import warnings
+import os
 import pandas as pd
 import numpy as np
 from emodpy_malaria.interventions.treatment_seeking import add_treatment_seeking
@@ -14,6 +15,18 @@ from snt.helpers_sim_setup import update_smc_access_ips
 from emodpy_malaria.interventions.vaccine import add_scheduled_vaccine, add_triggered_vaccine
 from emodpy_malaria.interventions.common import add_triggered_campaign_delay_event
 from emod_api.interventions.common import BroadcastEvent, DelayedIntervention
+
+
+def tryread_intervention_csv_from_scen_df(project_path, scen_df, scen_index, intervention_colname):
+    if (pd.isna(scen_df.at[scen_index, intervention_colname])) or ((scen_df.at[scen_index, intervention_colname] == '')):
+        df = pd.DataFrame()
+    else:
+        try:
+            df = pd.read_csv(os.path.join(project_path, 'simulation_inputs', '%s.csv' % scen_df.at[scen_index, intervention_colname]))
+        except IOError:
+            print(f"WARNING: Cannot read intervention file for: {intervention_colname}.")
+            df = pd.DataFrame()
+    return df
 
 
 def add_hfca_hs(campaign, hs_df, hfca, seed_index=0):
@@ -929,3 +942,5 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
         event_list.append('Received_NMF_Treatment')
 
     return {"events": event_list}
+
+
