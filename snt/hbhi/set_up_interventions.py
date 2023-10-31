@@ -129,7 +129,7 @@ class InterventionSuite:
                 'rate': rates
             })
         add_treatment_seeking(campaign, start_day=start_day, targets=targets, drug=['Artemether', 'Lumefantrine'],
-                              duration=duration)
+                              duration=duration, broadcast_event_name='Received_Treatment')
 
         # Severe
         targets = []
@@ -531,7 +531,7 @@ class InterventionSuite:
         for tp_time_trigger, coverage, vtype, event_name, std, init_eff, decay_t in \
                 zip(rtss_touchpoints, coverage_levels, rtss_types, rtss_event_names, std_dev_list,
                     initial_effect_list, decay_time_constant_list):
-
+            tp_time_trigger = float(tp_time_trigger)
             if delay_distribution_name == "LOG_NORMAL_DISTRIBUTION":
                 delay_distribution = {"Delay_Period_Distribution": "LOG_NORMAL_DISTRIBUTION",
                                       "Delay_Period_Log_Normal_Mu": (
@@ -677,7 +677,7 @@ class InterventionSuite:
             num_iiv_groups = 1
 
         pmc_touchpoints_dict = {}
-        for i, tp in enumerate(df['pmc_touchpoints']):
+        for i, tp in enumerate(df[self.pmc_touchpoint_col]):
             pmc_touchpoints_dict[f'{i}'] = tp
 
         add_vaccdrug_campaign(campaign, campaign_type='PMC', start_days=list(df[self.pmc_start_col]),
@@ -838,13 +838,14 @@ def add_all_interventions(campaign, int_suite, my_ds, hs_df=pd.DataFrame(),
         if has_irs > 0:
             event_list.append('Received_IRS')
 
-    if not smc_df[smc_df[int_suite.smc_ds_col] == my_ds].empty:
-        if addtl_smc_func:
-            addtl_smc = addtl_smc_func(campaign, smc_df, my_ds)
-        # has_smc = int_suite.add_ds_smc(cb, smc_df, my_ds)  #  'Received_Campaign_Drugs'
-        has_smc = int_suite.add_ds_vaccsmc(campaign, smc_df, my_ds)  # per default use vaccsmc
-        if has_smc > 0:
-            event_list = event_list + ['Received_SMC_VaccDrug']  # 'Received_Vehicle'
+    if not smc_df.empty:
+        if not smc_df[smc_df[int_suite.smc_ds_col] == my_ds].empty:
+            if addtl_smc_func:
+                addtl_smc = addtl_smc_func(campaign, smc_df, my_ds)
+            # has_smc = int_suite.add_ds_smc(cb, smc_df, my_ds)  #  'Received_Campaign_Drugs'
+            has_smc = int_suite.add_ds_vaccsmc(campaign, smc_df, my_ds)  # per default use vaccsmc
+            if has_smc > 0:
+                event_list = event_list + ['Received_SMC_VaccDrug']  # 'Received_Vehicle'
 
     if not itn_df.empty:
         has_itn = int_suite.add_ds_itns(campaign, itn_df, my_ds)

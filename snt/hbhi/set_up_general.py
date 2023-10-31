@@ -167,8 +167,8 @@ def set_input_files(config, my_ds, archetype_ds=None, demographic_suffix='',
     else:
         ds = my_ds
 
-    config.parameters['District_Sanitaire'] = 'my_ds'
-    config.parameters['Archetype'] = 'archetype_ds'
+    # config.parameters['District_Sanitaire'] = 'my_ds'
+    # config.parameters['Archetype'] = 'archetype_ds'
 
     if demographic_suffix is not None:
         config.parameters.Demographics_Filenames = [
@@ -196,7 +196,7 @@ def set_input_files(config, my_ds, archetype_ds=None, demographic_suffix='',
     return {'DS_Name': my_ds}
 
 
-def add_input_files(task, iopath, my_ds, archetype_ds=None, demographic_suffix='',
+def add_input_files(task, inputpath, my_ds, archetype_ds=None, demographic_suffix='',
                     climate_suffix='', climate_prefix=True, use_archetype=True):
     """
     Add assets corresponding to the filename parameters set in set_input_files.
@@ -232,58 +232,58 @@ def add_input_files(task, iopath, my_ds, archetype_ds=None, demographic_suffix='
 
     if demographic_suffix is not None:
         demog_path = os.path.join(ds, f'{ds}_demographics{demographic_suffix}.json')
-        task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', demog_path),
+        task.common_assets.add_asset(os.path.join(inputpath, demog_path),
                                      relative_path=str(Path(demog_path).parent), fail_on_duplicate=False)
 
     if climate_suffix is not None:
         if climate_prefix:
             file_path = os.path.join(ds, f'{ds}_air_temperature_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'{ds}_air_temperature_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
 
             file_path = os.path.join(ds, f'{ds}_rainfall_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'{ds}_rainfall_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
 
             file_path = os.path.join(ds, f'{ds}_relative_humidity_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'{ds}_relative_humidity_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
         else:
             file_path = os.path.join(ds, f'air_temperature_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'air_temperature_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
 
             file_path = os.path.join(ds, f'rainfall_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'rainfall_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
 
             file_path = os.path.join(ds, f'relative_humidity_daily{climate_suffix}.bin')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
             file_path = os.path.join(ds, f'relative_humidity_daily{climate_suffix}.bin.json')
-            task.common_assets.add_asset(os.path.join(iopath, 'simulation_inputs', file_path),
+            task.common_assets.add_asset(os.path.join(inputpath, file_path),
                                          relative_path=str(Path(file_path).parent), fail_on_duplicate=False)
 
 
 def setup_ds(config, manifest, platform, my_ds, archetype_ds=None,
              pull_from_serialization=False,
              burnin_id='', ser_date=50 * 365,
-             burnin_fname='',
+             burnin_df=None,
              rel_abund_df=None, lhdf=None, use_arch_burnin=True,
              from_arch=None, demographic_suffix='',
              climate_suffix='',
@@ -379,7 +379,7 @@ def setup_ds(config, manifest, platform, my_ds, archetype_ds=None,
         if burnin_id:
             ser_df = platform.create_sim_directory_df(burnin_id)  # TODO: or we can pass ser_df in
         else:
-            ser_df = pd.read_csv(burnin_fname)
+            ser_df = burnin_df
 
         if use_arch_burnin:
             ser_df = ser_df[ser_df[ds_name] == archetype_ds]
