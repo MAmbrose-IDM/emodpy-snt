@@ -531,7 +531,7 @@ class InterventionSuite:
         for tp_time_trigger, coverage, vtype, event_name, std, init_eff, decay_t in \
                 zip(rtss_touchpoints, coverage_levels, rtss_types, rtss_event_names, std_dev_list,
                     initial_effect_list, decay_time_constant_list):
-
+            tp_time_trigger = float(tp_time_trigger)
             if delay_distribution_name == "LOG_NORMAL_DISTRIBUTION":
                 delay_distribution = {"Delay_Period_Distribution": "LOG_NORMAL_DISTRIBUTION",
                                       "Delay_Period_Log_Normal_Mu": (
