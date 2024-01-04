@@ -1017,8 +1017,8 @@ if __name__ == "__main__":
                                                   output_filename='newInfections_PfPR_cases_monthly_byAgeGroup.csv')
 
             ]
-            am = AnalyzeManager(platform=platform, ids=[expid, ItemType.EXPERIMENT], analyzers=analyzers,
-                                force_analyze=True)
+            am = AnalyzeManager(platform=platform, ids=[(expid, ItemType.EXPERIMENT)], analyzers=analyzers,
+                                analyze_failed_items=True)
             am.analyze()
 
     elif include_LLINp:

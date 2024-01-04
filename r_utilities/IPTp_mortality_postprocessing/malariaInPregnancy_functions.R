@@ -767,6 +767,13 @@ adjust_sim_output_for_MiP = function(prob_severe_from_MiP=0.57,  # probability o
       (popUnder15_size + pop1530_size + pop3050_size + popOver50_size)
     
     
+    # calculate PfPR for population, unadjusted for IPTp
+    pfpr_allAges_noIPTp = (pfpr_under15 * popUnder15_size + 
+                             pfpr_1530 * pop1530_size + 
+                             pfpr_3050 * pop3050_size + 
+                             pfpr_over50 * popOver50_size) / 
+      (popUnder15_size + pop1530_size + pop3050_size + popOver50_size)
+    
     
     
     
@@ -874,6 +881,9 @@ adjust_sim_output_for_MiP = function(prob_severe_from_MiP=0.57,  # probability o
       if(all(as.integer(adjusted_allAgeMonthly$month[rows_adjusted_allAge_rr_ds][1:length(pop1530_size$month)]) == pop1530_size$month) & all(as.integer(adjusted_allAgeMonthly$year[rows_adjusted_allAge_rr_ds][1:length(pop1530_size$year)]) == pop1530_size$year)){
         new_pfpr = as.vector(as.matrix(pfpr_allAges_withIPTp[, ..i_MiP_col]))
         adjusted_allAgeMonthly[rows_adjusted_allAge_rr_ds[1:length(pop1530_size$month)], 'PfPR_MiP_adjusted' := new_pfpr]
+        
+        unadjusted_pfpr = as.vector(as.matrix(pfpr_allAges_noIPTp[, ..i_MiP_col]))
+        adjusted_allAgeMonthly[rows_adjusted_allAge_rr_ds[1:length(pop1530_size$month)], 'PfPR_unadjusted' := unadjusted_pfpr]
         
         new_severe_m = as.vector(as.matrix(num_severe_from_MiP[, ..i_MiP_col]))
         adjusted_allAgeMonthly[rows_adjusted_allAge_rr_ds[1:length(pop1530_size$month)], 'severe_maternal' := new_severe_m]
