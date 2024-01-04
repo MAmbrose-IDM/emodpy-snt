@@ -47,7 +47,7 @@ scenario_fname = os.path.join(manifest.project_path, 'simulation_inputs', '_inte
 scen_df = pd.read_csv(scenario_fname)
 # row matching this main calibration (not the burnin)
 scen_index = scen_df[scen_df['ScenarioName'] == 'seasonality_calibration_noMassITN'].index[0]
-expname = '%s_%s_round%i_maxInc%i' % (scen_df.at[scen_index, 'ScenarioName'], rep_admin, round_number, max_incidence)
+expname = '%s_%s_round%i_maxInc%i_v2' % (scen_df.at[scen_index, 'ScenarioName'], rep_admin, round_number, max_incidence)
 
 demographics_file = os.path.join('demographics_and_climate', '_entire_country',
                                  f'demographics_each_admin_{simulation_pop}.json')
@@ -59,13 +59,13 @@ r_fourth = 0.001
 center_move_scale = 1 / 15
 center_move_scale_second = 1 / 25  # 1/20
 center_move_scale_fourth = 1 / 30
-sim_runs_per_param_set = 3  # outside of testing, generally 5
+sim_runs_per_param_set = 2  # outside of testing, generally 5
 sim_runs_per_param_set_second = 5  # 10
 sim_runs_per_param_set_fourth = 10  # 30
 max_iterations = 5  # outside of testing, generally 10
 max_iterations_second = 5   # 20
 max_iterations_fourth = 5   # 20
-samples_per_iteration = 8  # outside of testing, generally 40  # must be at least 8
+samples_per_iteration = 15  # outside of testing, generally 40  # must be at least 8
 
 #############################################################################################################
 # set up the parameters that will be used to calibrate vector larval habitat seasonality
@@ -80,7 +80,7 @@ else:
 
 # if the second round, read in the best values from the previous round and use those as the starting point
 if later_round:
-    round1_fname = os.path.join('%s_%s_round%i_maxInc%i' % (
+    round1_fname = os.path.join('%s_%s_round%i_maxInc%i_v2' % (
     scen_df.at[scen_index, 'ScenarioName'], rep_admin, (round_number - 1), max_incidence), '_plots', 'LL_all.csv')
 
     round1_df = pd.read_csv(round1_fname)
