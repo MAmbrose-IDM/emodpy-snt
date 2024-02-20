@@ -225,15 +225,15 @@ def set_drug_params(config):
     malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_Cmax", 270)
     malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_Decay_T1", 0.7)
     malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_Decay_T2", 15.9)
-    malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_PKPD_C50", 55)
+    malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_PKPD_C50", 150)  # param2: 55)
     malaria_config.set_drug_param(config, 'Amodiaquine', "Drug_Vd", 1)
-    malaria_config.set_drug_param(config, 'Amodiaquine', "Max_Drug_IRBC_Kill", 0.2)
+    malaria_config.set_drug_param(config, 'Amodiaquine', "Max_Drug_IRBC_Kill", 0.23)  # param2: 0.2)
 
     # SulfadoxinePyrimethamine
     malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Drug_Decay_T1", 11.5)
     malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Drug_Decay_T2", 11.5)
-    malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Drug_PKPD_C50", 0.9)
-    malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Max_Drug_IRBC_Kill", 0.28)
+    malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Drug_PKPD_C50", 3)  # param2: 0.9)
+    malaria_config.set_drug_param(config, 'SulfadoxinePyrimethamine', "Max_Drug_IRBC_Kill", 0.28)  # param2: 0.28)
 
 
 def update_smc_drug_params(config, row):
