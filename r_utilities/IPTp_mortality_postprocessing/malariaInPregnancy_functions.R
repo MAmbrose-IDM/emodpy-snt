@@ -46,6 +46,7 @@ get_pop_size_infection_from_sim = function(first_year=2010, last_year=2019, admi
   
   # replace spaces with periods in column names
   colnames(sim_output) = gsub(' ', '.', colnames(sim_output))
+  sim_output = setorder(sim_output, admin_name,year,month)
   
   # each row corresponds to a month in the simulation
   months = rep(1:12, times=length(first_year:last_year))
