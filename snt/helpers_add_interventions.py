@@ -128,7 +128,7 @@ def add_hfca_irs(campaign, irs_df, hfca, seed_index=0):
                                                target_age_min=0,
                                                target_age_max=100,
                                                killing_initial_effect=row['initial_kill'],
-                                               killing_decay_time_constant=row['initial_kill'])
+                                               killing_decay_time_constant=row['mean_duration'])  # !! this was 'initial_kill' before, but I think that was an error in the translation from dtktools?
 
     return len(irs_df)
 
