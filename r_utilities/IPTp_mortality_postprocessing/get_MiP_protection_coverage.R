@@ -56,7 +56,7 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
   ## - - - - - - - - - - - - - - - - - - - - ##
   
   if (!future_projection_flag){
-    if(coverage_string == 'noCoverage'){
+    if(coverage_string %in% c('noCoverage', 'none')){
       project_coverage = rep(0, length(iptp_coverage_df[,dim(iptp_coverage_df)[2]]))
       project_dose_number = iptp_dose_number[,dim(iptp_dose_number)[2]]
       
@@ -96,7 +96,7 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
   } else{
     constant_future_values = TRUE
     # replace entries with projection scenario
-    if(coverage_string == 'noCoverage'){
+    if(coverage_string %in% c('noCoverage', 'none')){
       project_coverage = rep(0, length(iptp_coverage_df[,dim(iptp_coverage_df)[2]]))
       project_dose_number = iptp_dose_number[,dim(iptp_dose_number)[2]]
       iptp_coverage_df = data.frame('admin_name' = admin_names)
