@@ -5,7 +5,7 @@ library(data.table)
 library(dplyr)
 library(tidyverse)
 library(lubridate)
-library(rgdal)
+# library(rgdal)
 library(lubridate)
 
 
@@ -755,7 +755,7 @@ get_intervention_use_timeseries_exp = function(exp_filepath, exp_name, cur_admin
   interv_all = merge(interv_all, pop_sizes, by='admin_name')
   colnames(interv_all)[colnames(interv_all) == 'pop_size'] = 'true_population'
   interv_pop_scaled = as.data.frame(interv_all)
-  interv_pop_scaled[,intervention_columns] = interv_pop_scaled[,intervention_columns]* interv_pop_scaled$true_population / interv_pop_scaled$Statistical.Population
+  interv_pop_scaled[,intervention_columns] = interv_pop_scaled[,intervention_columns]* (interv_pop_scaled$true_population / interv_pop_scaled$Statistical.Population)
   
   # get sum of numbers across all included admins (keeping runs and months separate)
   interv_sums = interv_pop_scaled %>% dplyr::select(one_of('year', 'date', 'Run_Number', 'true_population', intervention_columns)) %>% dplyr::group_by(date, year, Run_Number) %>% 
@@ -797,6 +797,81 @@ get_intervention_use_timeseries_exp = function(exp_filepath, exp_name, cur_admin
   
   interv_agg$scenario = exp_name
   return(interv_agg)
+}
+
+
+# ----- CM intervention coverage ----- #
+get_cm_timeseries_by_state = function(cm_filepath, admin_info, end_year, exp_name, min_year, plot_by_month=TRUE){
+  
+  cm_input = read.csv(cm_filepath)
+  if(!('seed' %in% cm_input)) cm_input$seed = 1
+  cm_input = merge(cm_input, admin_info, by='admin_name')
+  
+  # CM is sometimes repeated for several years but only listed once; change to repeate the appropriate number of times
+  cm_input$years_repeated = cm_input$duration/365
+  if(any(cm_input$years_repeated>1)){
+    cur_cm_years = unique(cm_input$year)
+    for(yy in cur_cm_years){
+      # get first instance of this year
+      cur_year = cm_input[cm_input$year==yy,]
+      if(cur_year$years_repeated[1]>1){
+        for(rr in 1:(cur_year$years_repeated[1] - 1)){
+          temp_year = cur_year
+          temp_year$year = cur_year$year + rr
+          temp_year$simday = cur_year$simday + rr*365
+          cm_input = rbind(cm_input, temp_year)
+        }
+      }
+    }
+  }
+  if(any(cm_input$duration==-1) & (max(cm_input$year)<end_year)){
+    cm_repeated = cm_input[cm_input$duration == -1,]
+    for(rr in 1:(end_year - cm_repeated$year[1])){
+      temp_year = cm_repeated
+      temp_year$year = cm_repeated$year + rr
+      temp_year$simday = cm_repeated$simday + rr*365
+      cm_input = rbind(cm_input, temp_year)
+    }
+  }
+  # if there are multiple values in a single year (for a single DS/LGA), take the mean of those values
+  cm_input <- cm_input %>% group_by(year, admin_name, State, seed) %>%
+    summarise_all(mean) %>% ungroup()
+  
+  # cm_input = cm_input[intersect(which(cm_input$year >= min_year), which(cm_input$year <= end_year)),]
+  
+  
+  # get population-weighted CM coverage across admins
+  cm_input$multiplied_U5_cm = cm_input$U5_coverage * cm_input$pop_size
+  
+  # get sum of population sizes and multiplied CM coverage across included admins
+  cm_input_agg_admin <- cm_input %>% dplyr::select(year, State, seed, multiplied_U5_cm, pop_size) %>% group_by(year, State, seed) %>%
+    summarise_all(sum) %>% ungroup()
+  # get population-weighted U5 coverage across all included admin by dividing by sum of population sizes
+  cm_input_agg_admin$U5_coverage = cm_input_agg_admin$multiplied_U5_cm / cm_input_agg_admin$pop_size
+  
+  
+  # take average, max, and min burdens across simulation seeds
+  if(plot_by_month){
+    # subdivide year values and add dates
+    # date dataframe
+    included_years = unique(cm_input_agg_admin$year)
+    all_months = as.Date(paste0(rep(included_years, each=12),'-',c('01','02','03','04','05','06','07','08','09','10','11','12'), '-01' ))
+    date_df = data.frame(year=rep(included_years, each=12), date=all_months)
+    cm_input_agg_admin_monthly = merge(cm_input_agg_admin, date_df, by='year', all.x=TRUE, all.y=TRUE)
+    cm_agg = as.data.frame(cm_input_agg_admin_monthly) %>% dplyr::select(year, State, date, U5_coverage) %>%
+      dplyr::group_by(year, State, date) %>%
+      dplyr::summarise(mean_coverage = mean(U5_coverage),
+                       max_coverage = max(U5_coverage),
+                       min_coverage = min(U5_coverage))
+  } else{
+    cm_agg = as.data.frame(cm_input_agg_admin) %>% dplyr::select(year, State, U5_coverage) %>%
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise(mean_coverage = mean(U5_coverage),
+                       max_coverage = max(U5_coverage),
+                       min_coverage = min(U5_coverage))
+  }
+  cm_agg$scenario = exp_name
+  return(cm_agg)
 }
 
 
@@ -848,7 +923,7 @@ get_cm_timeseries_exp = function(cm_filepath, pop_sizes, end_year, exp_name, cur
   # get sum of population sizes and multiplied CM coverage across included admins
   cm_input_agg_admin <- cm_input %>% dplyr::select(year, seed, multiplied_U5_cm, pop_size) %>% group_by(year, seed) %>%
     summarise_all(sum) %>% ungroup()
-  # get population-weighted U5 coverage across all included admin by dividing by su  of population sizes
+  # get population-weighted U5 coverage across all included admin by dividing by sum of population sizes
   cm_input_agg_admin$U5_coverage = cm_input_agg_admin$multiplied_U5_cm / cm_input_agg_admin$pop_size
   
   
