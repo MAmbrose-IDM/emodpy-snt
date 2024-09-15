@@ -172,6 +172,8 @@ get_pop_size_infection_from_sim = function(first_year=2010, last_year=2019, admi
 
 
 
+
+
 calc_mStill_mLBW_death = function(preg_withoutNMStill_1530, preg_withoutNMStill_3050, prob_infect_in_preg_1530, prob_infect_in_preg_3050, f_iptp_t, pm_LBW_iptp, pm_still_iptp, d0, d1, frac_first_second_birth){
   #' calculate number of malaria-attributed stillbirths, livebirths, mLBWs, and mLBW deaths with the estimated levels of IPTp
   #' 
