@@ -9,7 +9,7 @@ library(foreign)
 #   detach("package:plyr", unload=TRUE) 
 # }
 library(dplyr)
-library(rgdal)
+# library(rgdal)  # not available for newer version of R
 library(raster)
 library(sp)
 library(pals)
@@ -406,7 +406,7 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
     # A previous approach was to assume that the rate of receiving effective treatment is halfway in between a) and b) - i.e., half of the people who seek treatment but don't receive a blood test are nonetheless given ACTs
     # The current approach is to use the national fraction of individuals who are given ACTs/artesunate among those who receive any antimalarial, multiplied by the local treatment-seeking rate
     use_art_probs = TRUE
-    use_cm_probs = FALSE  # set which of the variables for treatment-seeking is used: any facility or any treatment/advice aside from traditional
+    use_cm_probs = TRUE  # set which of the variables for treatment-seeking is used: any facility (TRUE) or any treatment/advice aside from traditional (FALSE)
     if(use_art_probs){  # new approach using probability someone who gets an antimalarial gets an ACT
       # use the country-wide, cluster-weighted probability of ACT/artesunate use given some type of antimalarial use if cluster weights are available
       if('art_rate' %in% colnames(MIS_shape) & 'itn_weights' %in% colnames(MIS_shape)){
@@ -1111,6 +1111,70 @@ plot_extracted_DHS_data = function(hbhi_dir, years, admin_shape, min_num_total=3
       dev.off()
     }
   }
+}
+
+
+
+
+
+# plot coverage/prevalence values in each cluster and admin, as extracted from DHS
+plot_extracted_DHS_clusters_within_state = function(hbhi_dir, years, admin_shape, state, variables=c('mic', 'rdt','itn_all','itn_u5','itn_5_10','itn_10_15','itn_15_20','itn_o20','iptp','cm','received_treatment','sought_treatment','blood_test'), colors_range_0_to_1=NA, plot_vaccine=FALSE, plot_suffix=''){
+  admin_shape = admin_shape[admin_shape$State==state,]
+  if(any(is.na(colors_range_0_to_1))){
+    colors_range_0_to_1 = add.alpha(pals::parula(101), alpha=0.5)
+  }
+  if(plot_vaccine){
+    vacc_string='vaccine_'
+  } else vacc_string=''
+  if(!dir.exists(paste0(hbhi_dir,'/estimates_from_DHS/plots'))) dir.create(paste0(hbhi_dir,'/estimates_from_DHS/plots'))
+  
+  ##=========================================================================================================##
+  # plots of cluster-level DHS results - separated by interventions, each plot panel showing across years
+  ##=========================================================================================================##
+  if(!dir.exists(paste0(hbhi_dir,'/estimates_from_DHS/plots'))) dir.create(paste0(hbhi_dir,'/estimates_from_DHS/plots'))
+  # use subset of variables
+  if(!plot_vaccine) {
+    variables2 = variables[variables %in% c('mic', 'rdt', 'itn_all', 'itn_u5', 'iptp','cm','received_treatment','sought_treatment','blood_test', 'art')]
+  } else variables2 = variables
+  nyears = length(years)
+  
+  # pdf(paste0(hbhi_dir, '/estimates_from_DHS/plots/DHS_cluster_observations_all_years2.pdf'), width=28, height=6*length(variables), useDingbats = FALSE)
+  png(paste0(hbhi_dir, '/estimates_from_DHS/plots/',state,'_DHS_',vacc_string, 'cluster_observations_all_years',plot_suffix,'.png'), width=0.5*7*nyears, height=0.5*6*length(variables2), units='in', res=900)
+  base_layout_matrix = matrix(c(rep(1:nyears, each=3), nyears+1, rep(1:nyears, each=3),nyears+2),nrow=2, byrow=TRUE)
+  layout_matrix = base_layout_matrix
+  if (length(variables2)>1){
+    for(vv in 2:length(variables2)){
+      layout_matrix = rbind(layout_matrix, base_layout_matrix + (vv-1)*max(base_layout_matrix))
+    }
+  }
+  layout(layout_matrix)
+  par(mar=c(0,0,1,0))
+  for(i_var in 1:length(variables2)){
+    var = variables2[i_var]
+    for(yy in 1:nyears){
+      cluster_obs = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',vacc_string, 'cluster_outputs_', years[yy], '.csv'))[,-1]
+      cluster_obs = cluster_obs[cluster_obs$NOMREGION == state,]
+      cluster_obs$latitude[which(cluster_obs$latitude == 0)] = NA
+      cluster_obs$longitude[which(cluster_obs$longitude == 0)] = NA
+      if(paste0(var,'_num_total') %in% colnames(cluster_obs)){
+        max_survey_size = max(cluster_obs[[paste0(var,'_num_total')]], na.rm=TRUE)
+        plot(st_geometry(admin_shape), main=paste0(var, ' - ', years[yy]), border=rgb(0.5,0.5,0.5,0.5))
+        points(cluster_obs$longitude, cluster_obs$latitude, col=colors_range_0_to_1[1+round(cluster_obs[[paste0(var,'_rate')]]*100)], pch=20, cex=cluster_obs[[paste0(var,'_num_total')]]/round(max_survey_size/5))#, xlim=c(min(cluster_obs$longitude), max(cluster_obs$longitude)), ylim=c(min(cluster_obs$latitude), max(cluster_obs$latitude)))
+      }else{
+        plot(NA, ylim=c(0,1), xlim=c(0,1), axes=FALSE, xlab=NA, ylab=NA)
+      }
+    }
+    # legend - colorbar
+    legend_image = as.raster(matrix(rev(colors_range_0_to_1[1+round(seq(0,1,length.out=20)*100)]), ncol=1))
+    plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = var)
+    text(x=1.5, y = seq(0,1,length.out=5), labels = seq(0,1,length.out=5))
+    rasterImage(legend_image, 0, 0, 1,1)
+    # legend - survey size
+    plot(rep(0,5), seq(1, max_survey_size, length.out=5), cex=seq(1,max_survey_size, length.out=5)/round(max_survey_size/5), pch=20, axes=FALSE, xlab='', ylab='sample size'); axis(2)
+  }
+  dev.off()
+    
+  
 }
 
 

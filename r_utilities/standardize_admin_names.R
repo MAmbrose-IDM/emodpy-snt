@@ -22,6 +22,8 @@ create_reference_name_match = function(lga_name){
   #' alter string lga_name to standardized admin2 (LGA) format, also check for and fix common misspellings
   #' @param lga_name the name of the admin2 that should be changed to standardized format
   
+  lga_name = str_replace_all(lga_name, pattern=" State", replacement='')
+  lga_name = str_replace_all(lga_name, pattern=" state", replacement='')
   lga_name = str_replace_all(lga_name, pattern=' ', replacement='-')
   lga_name = str_replace_all(lga_name, pattern='/', replacement='-')
   lga_name = str_replace_all(lga_name, pattern='_', replacement='-')
@@ -80,6 +82,7 @@ create_reference_name_match = function(lga_name){
                       # state names
                       'AKWA-LBOM' = 'AKWA-IBOM',
                       'FEDERAL-CAPITAL-TERRITORY' = 'FCT-ABUJA',
+                      'FCT' = 'FCT-ABUJA',
                       'CROSS-RIVER' = 'CRORIVER'
 
   )
