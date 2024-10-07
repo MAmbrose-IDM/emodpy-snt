@@ -31,15 +31,14 @@ pip install -e . -r requirements.txt
 Note: please use your own preferred approach for setting up projects. For those less familiar, here is one potential way to set this up using PyCharm.
 1. Get scripts from repo: on Github, fork the main repo. Then clone your copy of the repo so that it is available on your local machine.
 2. Open PyCharm; open the repo as a new project (e.g., in a new window)
-3. Set up a virtual enviornment for the project (or choose an existing one) - I have one set up to use Python 3.6 (needed for the version of dtk-tools I'm using)
+3. Set up a virtual enviornment for the project (or choose an existing one) - I have one set up to use Python 3.9 (needed for the version of emodpy I'm using)
   - Can do this on command prompt of with the PyCharm GUI menus (Settings-->Project-->Python Interpreter-->(either choose an existing one or create a new venv)
-  - If setting up a new venv, will need to install all necessary packages... this process will be different soon after transitioning to emodpy-malaria, so I am not writing out full description here.
+  - If setting up a new venv, will need to install all necessary packages needed for emodpy-malaria - see emodpy-malaria repo instruction at https://github.com/InstituteforDiseaseModeling/emodpy-malaria.git.
 4. Open the directories/repos needed to run this project in PyCharm and attach them to the current project:
   - _{repo used for current project}_
-  - malaria-snt-core
-  - dtk-tools
-  - dtk-tools-malaria
-5. In File-->Settings--> Project-->Project Dependencies, make sure that all the current project depends on all other projects and that the malaria-snt-core depends on dtk-tools and dtk-tools-malaria. 
+  - emodpy-malaria
+  - malaria-snt-projects
+5. In File-->Settings--> Project-->Project Dependencies, make sure that all the current project depends on all other projects and that the malaria-snt-projects depends on emodpy-malaria. 
   
 
 
@@ -83,7 +82,7 @@ The scripts for the project are organized as follows:
   - /calibration - scripts with functons for the seasonality and baseline transmission calibration steps
   - /analyzers - scripts with functions used to convert the simulation output to the form needed for further analysis
   - /IPTp_mortality_postprocessing - scripts with functions used to include effects from malaria in pregnancy and IPTp and estimate mortality
-2) Example of project-specific scripts, which depend on functions in the malaria-snt-core repo - each project has its own separate repository, but example setup and scripts for running the full process are given here
+2) Example of project-specific scripts, which depend on functions in the malaria-snt-projects repo - each project has its own separate repository, but example setup and scripts for running the full process are given here
 - /example_.../setup_inputs/0_main_DHS_data_to_sim_inputs.R (corresponds with scripts from /data_processing) - once the basic files are set up, the  script will take care of most of the data processing and formatting to create the data files needed downstream
   - note: for this script to succeed, certain input files must already have been created. Several of the other scripts in the /setup_inputs directory can be used to generate those files.
 - /example_.../setup_inputs/create_seasonality_archetypes - find groupings of administrative regions that are expected to have similar seasonality calibration results
