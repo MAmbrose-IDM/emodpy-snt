@@ -46,6 +46,7 @@ get_cluster_level_outputs = function(dta_dir, cur_dta, DHS_file_recode_df, var_i
                 num_pos = sum(pos),
                 num_tested = n()) 
   }
+
   # match 'hv001' with 'clusterid'
   MIS_outputs = merge(MIS_outputs, dta_cluster_0, by.y=DHS_file_recode_df$cluster_id_code[var_index], by.x='clusterid', all=TRUE)
   
@@ -69,6 +70,50 @@ get_cluster_level_outputs = function(dta_dir, cur_dta, DHS_file_recode_df, var_i
   
   return(MIS_outputs)
 }
+
+
+
+
+
+# function to read in relevant dta file and extract the number of positive and negative results, along with the number tested in each cluster and cluster locations
+get_cluster_level_vacc_outputs = function(dta_dir, cur_dta, DHS_file_recode_df, var_index, MIS_outputs, include_itn_weight=FALSE, alternate_positive_patterns = c('vaccination date on card','vaccination marked on card', 'reported by mother'),
+                                          survey_month_code = 'v006', survey_year_code='v007', age_month_code='b1', age_year_code='b2', min_age_months_included=12){
+  cur_dta$pos = NA
+  cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == DHS_file_recode_df$pos_pattern[var_index])] = 1
+  cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == DHS_file_recode_df$neg_pattern[var_index])] = 0
+  if(length(alternate_positive_patterns)>0){
+    for(alt_pos_pattern in alternate_positive_patterns){
+      cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == alt_pos_pattern)] = 1
+    }
+  }
+  
+  # calculate age at time of survey
+  cur_dta$survey_date = as.Date(paste0(cur_dta[,which(colnames(cur_dta)==survey_year_code)],'-',cur_dta[,which(colnames(cur_dta)==survey_month_code)],'-28'))
+  cur_dta$birth_date = as.Date(paste0(cur_dta[,which(colnames(cur_dta)==age_year_code)],'-',cur_dta[,which(colnames(cur_dta)==age_month_code)],'-01'))
+  cur_dta$age = as.numeric(cur_dta$survey_date - cur_dta$birth_date)
+  # only include entries above the minimum age
+  cur_dta$over_min_age = cur_dta$age > (min_age_months_included*30.4)
+  
+  # # compare rates of positivity between all ages and ages over min (for debugging/checking)
+  # sum(cur_dta$pos, na.rm=T)/sum(!is.na(cur_dta$pos))  # fraction with the vaccine among all ages
+  # sum(cur_dta$pos[(cur_dta$over_min_age)], na.rm=T)/sum(!is.na(cur_dta$pos[(cur_dta$over_min_age)]))  # fraction with the vaccine among those over the minimum age
+
+  # remove entries for individuals under the age cutoff (i.e., who are to young to have received the vaccine yet)
+  cur_dta$pos[!(cur_dta$over_min_age)] = NA
+  
+  dta_cluster_0 = cur_dta  %>%
+    filter(!is.na(cur_dta$pos)) %>%
+    group_by_at(DHS_file_recode_df$cluster_id_code[var_index]) %>%
+    summarize(rate = mean(pos, na.rm = TRUE),
+              num_pos = sum(pos),
+              num_tested = n()) 
+  
+  # match 'hv001' with 'clusterid'
+  MIS_outputs = merge(MIS_outputs, dta_cluster_0, by.y=DHS_file_recode_df$cluster_id_code[var_index], by.x='clusterid', all=TRUE)
+  return(MIS_outputs)
+}
+
+
 
 match_lga_names = function(lga_name){
   lga_name = toupper(lga_name)
@@ -604,7 +649,8 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
 
 
 # extract cluster-level data for EPI vaccination coverages for single year
-extract_vaccine_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop_df_filename, min_num_total=30, vaccine_variables=c('vacc_dpt1', 'vacc_dpt2', 'vacc_dpt3'), vaccine_alternate_positive_patterns=c('reported by mother', 'vaccination marked on card')){
+extract_vaccine_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop_df_filename, min_num_total=30, vaccine_variables=c('vacc_dpt1', 'vacc_dpt2', 'vacc_dpt3'), vaccine_alternate_positive_patterns=c('reported by mother', 'vaccination marked on card'),
+                                    survey_month_code = 'v006', survey_year_code='v007', age_month_code='b1', age_year_code='b2', min_age_months_included=12){
   
   ####=========================================================================================================####
   # create csvs with cluster-level and admin-level counts and rates for all vaccination variables
@@ -620,7 +666,8 @@ extract_vaccine_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop
     var_index = which(DHS_file_recode_df$variable == vaccine_variables[vv])
     if(!is.na(DHS_file_recode_df$filename[var_index])){
       cur_dta = read.dta(paste0(dta_dir, '/', DHS_file_recode_df$folder_dir[var_index], '/', DHS_file_recode_df$filename[var_index]))
-      MIS_outputs=get_cluster_level_outputs(dta_dir=dta_dir, cur_dta=cur_dta, DHS_file_recode_df=DHS_file_recode_df, var_index=var_index, MIS_outputs=MIS_outputs, alternate_positive_patterns=vaccine_alternate_positive_patterns)
+      MIS_outputs=get_cluster_level_vacc_outputs(dta_dir=dta_dir, cur_dta=cur_dta, DHS_file_recode_df=DHS_file_recode_df, var_index=var_index, MIS_outputs=MIS_outputs, alternate_positive_patterns=vaccine_alternate_positive_patterns,
+                                                 survey_month_code=survey_month_code, survey_year_code=survey_year_code, age_month_code=age_month_code, age_year_code=age_year_code, min_age_months_included=DHS_file_recode_df$min_age_months_to_include[var_index])
       colnames(MIS_outputs)[colnames(MIS_outputs)=='rate'] = paste0(vaccine_variables[vv], '_rate')
       colnames(MIS_outputs)[colnames(MIS_outputs)=='num_pos'] = paste0(vaccine_variables[vv], '_num_true')
       colnames(MIS_outputs)[colnames(MIS_outputs)=='num_tested'] = paste0(vaccine_variables[vv], '_num_total')
