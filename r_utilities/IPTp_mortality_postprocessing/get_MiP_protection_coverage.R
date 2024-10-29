@@ -89,7 +89,30 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
       iptp_relative_risk = iptp_relative_risk_estimateBetterProtection
       
     } else if(coverage_string != 'curCoverage') warning('coverage string not recognized for historical simulations... assuming estimated true coverage')
+    
+    # make sure that values are included for all years
+    if (first_year < min(as.numeric(gsub('X','', colnames(iptp_coverage_df)[-1])))){
+      warning('The first year of the IPTp coverage dataframe is after the first year of the simulation. Need to add more IPTp data/assumptions.')
+    }
+    if(last_year > max(as.numeric(gsub('X','', colnames(iptp_coverage_df)[-1])))){
+      warning('The simulation continues for more years than supplied in the IPTp coverage dataframe. Assuming continuation of lastest coverage. To use a different assumption, need to update IPTp input file.')
+      # use coverage from latest year for projections
+      project_coverage = iptp_coverage_df[,dim(iptp_coverage_df)[2]]
+      project_dose_number = iptp_dose_number[,dim(iptp_dose_number)[2]]
       
+      for(yy in (max(as.numeric(gsub('X','', colnames(iptp_coverage_df)[-1])))+1):last_year){
+        # update iptp coverage (>=1 dose)
+        new_coverage_df = data.frame(project_coverage)
+        colnames(new_coverage_df) = yy
+        iptp_coverage_df = cbind(iptp_coverage_df, new_coverage_df)
+        
+        # update iptp doses (of covered individuals, how many doses received?)
+        new_dose_df = data.frame(project_dose_number)
+        colnames(new_dose_df) = yy
+        iptp_dose_number = cbind(iptp_dose_number, new_dose_df)
+      }
+    }
+    
   ## - - - - - - - - - - - - - - - - - - - - ##
   # simulations of future transmission
   ## - - - - - - - - - - - - - - - - - - - - ##
