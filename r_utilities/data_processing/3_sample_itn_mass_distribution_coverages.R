@@ -369,10 +369,25 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       net_dhs_info$code = net_dhs_info$NOMREGION
       llin_info_raw_state$code = llin_info_raw_state$State
       llin_info_raw_state$date = as.Date(llin_info_raw_state$date)
+
+      ggc1 = ggplot(grid_layout_state_locations)+
+        # geom_vline(data=llin_info_raw_state, aes(xintercept=date), color='darkgreen')+
+        geom_hline(aes(yintercept=0), color='black')+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate), color='black', size=0.8)+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
+        scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
+        scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        theme_classic()+
+        theme(legend.position='none') +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
+      ggsave(filename=paste0(hbhi_dir, '/simulation_inputs/plots/itn_use_from_dhs.png'), plot=ggc1, width=9, height=6, units='in', dpi=1600)
+      
       ggc = ggplot(grid_layout_state_locations)+
         geom_vline(data=llin_info_raw_state, aes(xintercept=date), color='darkgreen')+
         geom_hline(aes(yintercept=0), color='black')+
-        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name))+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate), color='black', size=0.8)+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
         coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
@@ -386,7 +401,8 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_vline(data=llin_info_raw_state, aes(xintercept=date), color='darkgreen')+
         geom_point(data=coverage_df, aes(x=date), y=1, col='blue', shape='|', size=7) +
         geom_hline(aes(yintercept=0), color='black')+
-        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name))+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate), color='black', size=0.8)+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
         coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
@@ -394,6 +410,21 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
       ggsave(filename=paste0(hbhi_dir, '/simulation_inputs/plots/itn_use_from_dhs_and_estimated_dist_dates.png'), plot=ggd, width=9, height=6, units='in', dpi=1600)
+      
+      ggdv2 = ggplot(grid_layout_state_locations)+
+        # geom_vline(data=llin_info_raw_state, aes(xintercept=date), color='darkgreen')+
+        geom_vline(data=coverage_df, aes(xintercept=date), color='blue',  size=0.3) +
+        geom_hline(aes(yintercept=0), color='black')+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate), color='black', size=0.8)+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
+        scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
+        scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        theme_classic()+
+        theme(legend.position='none') +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
+      ggsave(filename=paste0(hbhi_dir, '/simulation_inputs/plots/itn_use_from_dhs_and_estimated_dist_dates_v2.png'), plot=ggdv2, width=9, height=6, units='in', dpi=1600)
+      
       
       coverage_timeseries$code = coverage_timeseries$State
       gge = ggplot(grid_layout_state_locations)+
@@ -410,6 +441,22 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
       ggsave(filename=paste0(hbhi_dir, '/simulation_inputs/plots/itn_use_timeseries_from_dhs_and_estimated_dist_dates.png'), plot=gge, width=9, height=6, units='in', dpi=1600)
+      
+      
+      ggev2 = ggplot(grid_layout_state_locations)+
+        geom_line(data=coverage_timeseries, aes(x=date, y=adjusted_coverage, col=admin_name), linewidth=0.15) +
+        # geom_vline(data=llin_info_raw_state, aes(xintercept=date), color='darkgreen')+
+        geom_vline(data=coverage_df, aes(xintercept=date), color='blue',  size=0.3) +
+        geom_hline(aes(yintercept=0), color='black')+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate), color='black', size=0.8)+
+        geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
+        scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
+        scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        theme_classic()+
+        theme(legend.position='none') +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
+      ggsave(filename=paste0(hbhi_dir, '/simulation_inputs/plots/itn_use_timeseries_from_dhs_and_estimated_dist_dates_v2.png'), plot=ggev2, width=9, height=6, units='in', dpi=1600)
       
       
     }

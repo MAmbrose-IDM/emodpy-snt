@@ -1212,6 +1212,14 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       coord_cartesian(ylim=c(0,NA))+
       theme_classic()+ 
       theme(legend.position = "none", text = element_text(size = text_size))
+    
+    g_all_inter = ggplot() +
+      geom_line(data=net_use_df, aes(x=year, y=coverage), color=rgb(1,0.6,1), size=1) + 
+      xlab('year') + 
+      ylab(paste0('coverage metric')) + 
+      coord_cartesian(ylim=c(0,NA))+
+      theme_classic()+ 
+      theme(legend.position = "none", text = element_text(size = text_size))
   }
   inter_plot_list = append(inter_plot_list, list(g_net_use))
   # # plot net distribution numbers through time (how many nets distributed in each month or year per person?)
@@ -1256,6 +1264,10 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         coord_cartesian(ylim=c(0,NA))+
         theme_classic()+ 
         theme(legend.position = "none", text = element_text(size = text_size))
+      
+      g_all_inter = g_all_inter +
+        geom_line(data=net_use_df, aes(x=year, y=vacc_per_cap), color=rgb(0,0.3,0), size=1)
+        
     }
     inter_plot_list = append(inter_plot_list, list(g_vacc))
   }
@@ -1282,6 +1294,9 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         coord_cartesian(ylim=c(0,NA))+
         theme_classic()+ 
         theme(legend.position = "none", text = element_text(size = text_size))
+      
+      g_all_inter = g_all_inter +
+        geom_line(data=net_use_df, aes(x=year, y=pmc_per_cap), color=rgb(0.0,0.4,1), size=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_pmc))
   }
@@ -1294,7 +1309,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         geom_point(size=1) + 
         scale_color_manual(values = scenario_palette) + 
         xlab('date') + 
-        ylab(paste0('PMC doses per person')) + 
+        ylab(paste0('SMC doses per person')) + 
         coord_cartesian(ylim=c(0,NA))+
         theme_classic()+ 
         theme(legend.position = "none", text = element_text(size = text_size))
@@ -1308,6 +1323,9 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         coord_cartesian(ylim=c(0,NA))+
         theme_classic()+ 
         theme(legend.position = "none", text = element_text(size = text_size))
+      
+      g_all_inter = g_all_inter +
+        geom_line(data=net_use_df, aes(x=year, y=smc_per_cap), color=rgb(0.0,0.4,1), size=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_smc))
   }
@@ -1334,6 +1352,9 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         coord_cartesian(ylim=c(0,NA))+
         theme_classic()+ 
         theme(legend.position = "none", text = element_text(size = text_size))
+      
+      g_all_inter = g_all_inter +
+        geom_line(data=net_use_df, aes(x=year, y=irs_per_cap), color=rgb(1,0,1), size=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_irs))
   }
@@ -1362,6 +1383,9 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       coord_cartesian(ylim=c(0,NA))+
       theme_classic()+ 
       theme(legend.position = "none", text = element_text(size = text_size))
+    
+    g_all_inter = g_all_inter +
+      geom_line(data=cm_df, aes(x=year, y=mean_coverage), color=rgb(0.1,0.9,0.4), size=1)
   }
   inter_plot_list = append(inter_plot_list, list(g_cm))
   
@@ -1374,6 +1398,10 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
   
   if(save_plots){
     ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_', burden_metric, '_', age_plotted, '_versusInterventions_pyr', pyr, '_', chw_cov, 'CHW_',district_subset,'.png'), gg, dpi=600, width=7, height=4*(2+length(inter_plot_list)), units='in')
+    
+    if(!plot_by_month){
+      ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_interventions_pyr', pyr, '_', chw_cov, 'CHW_',district_subset,'.png'), g_all_inter, dpi=600, width=7, height=5, units='in')
+    }
   }
   return(gg)
 }
@@ -1388,10 +1416,9 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
 
 plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_state_locations, 
                                plot_by_month, min_year, max_year, sim_end_years, 
-                               scenario_filepaths, scenario_names, scenario_input_references, experiment_names, scenario_palette, 
+                               scenario_names, scenario_input_references, experiment_names, scenario_palette, 
                                overwrite_files=FALSE){
-  
-  
+
   ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
   # combine simulation output from multiple scenarios
   ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
@@ -1412,7 +1439,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
   } else{
     # iterate through scenarios, storing input CM coverages
     cm_df = data.frame()
-    for(ee in 1:length(scenario_filepaths)){
+    for(ee in 1:length(experiment_names)){
       intervention_csv_filepath = scenario_input_references[ee]
       intervention_file_info = read.csv(intervention_csv_filepath)
       experiment_intervention_name = experiment_names[ee]
@@ -1431,22 +1458,24 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
       }
     }
     
-    # add the final 'to-present' row to all future simulations for a continuous plot
-    if(plot_by_month){
-      # join past and future simulation trajectories
-      to_present_df = cm_df[cm_df$scenario == 'to-present',]
-      final_to_present_row = to_present_df[as.Date(to_present_df$date) == max(as.Date(to_present_df$date)),]
-      for(ss in 2:length(scenario_names)){
-        final_to_present_row$scenario = scenario_names[ss]
-        cm_df = rbind(cm_df, final_to_present_row)
-      }
-    } else{
-      # join past and future simulation trajectories
-      to_present_df = cm_df[cm_df$scenario == 'to-present',]
-      final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
-      for(ss in 2:length(scenario_names)){
-        final_to_present_row$scenario = scenario_names[ss]
-        cm_df = rbind(cm_df, final_to_present_row)
+    if(any(grepl('to-present', cm_df$scenario))){
+      # add the final 'to-present' row to all future simulations for a continuous plot
+      if(plot_by_month){
+        # join past and future simulation trajectories
+        to_present_df = cm_df[cm_df$scenario == 'to-present',]
+        final_to_present_row = to_present_df[as.Date(to_present_df$date) == max(as.Date(to_present_df$date)),]
+        for(ss in 2:length(scenario_names)){
+          final_to_present_row$scenario = scenario_names[ss]
+          cm_df = rbind(cm_df, final_to_present_row)
+        }
+      } else{
+        # join past and future simulation trajectories
+        to_present_df = cm_df[cm_df$scenario == 'to-present',]
+        final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+        for(ss in 2:length(scenario_names)){
+          final_to_present_row$scenario = scenario_names[ss]
+          cm_df = rbind(cm_df, final_to_present_row)
+        }
       }
     }
     write.csv(cm_df, cm_df_filepath, row.names=FALSE)
