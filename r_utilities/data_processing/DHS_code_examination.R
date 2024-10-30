@@ -112,7 +112,7 @@ for(ii in 6:length(house_codes)){
 
 # individual codes
 ind_codes = c('caseid','bidx','v001','v012','v014','v006','v007','v105', 'hw16', 'h32z','h47','m49a', 'ml1', 'h3', 'h5', 'h7', 'h9', art_codes, non_art_codes)
-ind_filenum = 1 # 2010:1, 2013:1, 2015:4, 2018:1, 2021: 5
+ind_filenum = 5 # 2010:1, 2013:1, 2015:4, 2018:1, 2021: 5
 dta_filepaths[ind_filenum]
 View(dta_list[[ind_filenum]][1:50,ind_codes[ind_codes %in% colnames(dta_list[[ind_filenum]])]])
 for(ii in 6:length(ind_codes)){
@@ -173,8 +173,9 @@ find_code_locations(dta_list=dta_list, code_str='h37e')  # combination with arte
 find_code_locations(dta_list=dta_list, code_str='ml13e')  # combination with artemisinin
 find_code_locations(dta_list=dta_list, code_str='ml20a')  # how long after fever started did first take ACT
 # # view all the artesunate versus non-ACT antimalarials
-# art_codes = c("ml13e", "ml13aa", "ml13ab")
+# art_codes = c("ml13e", "ml13aa", "ml13ab")  # 'ml13aa' is rectal artesunate, moving to non-ACT
 # non_art_codes = c("ml13a", "ml13b", "ml13c", "ml13d", "ml13da", "ml13h")  #, "ml13g", "ml13f") # country-specific antimalarial: "ml13g", "ml13f", 
+find_code_locations(dta_list=dta_list, code_str='ml13aa')  # rectal artesunate
 
 
 

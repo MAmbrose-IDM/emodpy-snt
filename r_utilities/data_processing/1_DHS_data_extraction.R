@@ -134,7 +134,7 @@ any_matches = function(df_row, pos_codes){
 # create new column describing whether an individual received effective treatment given they received any antimalarial. 
 #   Column value will be 1 if an individual received rectal artesunate, IV artesunate, or an ACT and 0 if they received a different antimalarial
 #    note: currently does not include individuals who reported country-specific antimalarial ("ml13g", "ml13f"), since it's not clear whether or not those are ACT
-received_art_antimalarial = function(dta_dir, DHS_file_recode_df, var_index, art_codes = c("ml13e", "ml13aa", "ml13ab"), non_art_codes = c("ml13a", "ml13b", "ml13c", "ml13d", "ml13da", "ml13h")){
+received_art_antimalarial = function(dta_dir, DHS_file_recode_df, var_index, art_codes = c("ml13e", "ml13ab"), non_art_codes = c("ml13a", "ml13b", "ml13c", "ml13d", "ml13aa", "ml13da", "ml13h")){
   cur_dta = read.dta(paste0(dta_dir, '/', DHS_file_recode_df$folder_dir[var_index], '/', DHS_file_recode_df$filename[var_index]))
   # change columns to strings (the any_matches function does not work as expected if there are factors)
   cur_dta = data.frame(lapply(cur_dta, as.character), stringsAsFactors=FALSE)
