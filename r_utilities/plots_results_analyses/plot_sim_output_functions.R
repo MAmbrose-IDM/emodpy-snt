@@ -23,7 +23,7 @@ save_plots = TRUE
 
 
 ####################################################################################
-# barplots for burden relative to BAU at the national level
+# barplots for burden relative to BAU: percent reduction
 ####################################################################################
 
 plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins, 
@@ -148,7 +148,7 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
                                                  barplot_start_year, barplot_end_year, 
                                                  pyr, chw_cov,
                                                  scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, show_error_bar=TRUE, align_seeds=TRUE,
-                                                 burden_metric_subset=c(), include_to_present=TRUE){
+                                                 burden_metric_subset=c(), include_to_present=TRUE, file_suffix=''){
   
   admin_pop = read.csv(pop_filepath)
   
@@ -213,7 +213,7 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
     rel_burden_agg$code = rel_burden_agg$State
     gg = ggplot(rel_burden_agg) + 
       geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
-      scale_y_continuous(labels=percent_format()) + #,limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
+      scale_y_continuous(labels=percent_format(), n.breaks=4) + #,limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
       ylab('Percent reduction in burden \n ((Baseline - Plan) / Baseline) * 100') + 
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
@@ -228,9 +228,127 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
       gg = gg +
         geom_errorbar(aes(x=scenario, ymin=min_rel, ymax=max_rel), width=0.4, colour="black", alpha=0.9, size=1) 
     }
-    ggsave(paste0(sim_future_output_dir, '/_plots/','barplot_percent_reduction_', burden_metric_name,'_stateGrid.png'), gg, dpi=600, width=18, height=12, units='in')
+    ggsave(paste0(sim_future_output_dir, '/_plots/','barplot_percent_reduction_', burden_metric_name,'_stateGrid',file_suffix,'.png'), gg, dpi=600, width=18*.6, height=12*.6, units='in')  # , width=18, height=12, units='in'
   }
 }
+
+
+
+
+####################################################################################
+# barplots for burden reduction relative to BAU: difference
+####################################################################################
+
+plot_difference_burden_barplots = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins, 
+                                         barplot_start_year, barplot_end_year, 
+                                         pyr, chw_cov,
+                                         scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, separate_plots_flag=FALSE, show_error_bar=TRUE, align_seeds=TRUE,
+                                         include_to_present=TRUE, burden_metric_subset=c()){
+  admin_pop = read.csv(pop_filepath)
+  
+  # burden metrics
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
+  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+  # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
+  if((length(burden_metric_subset)>=1)){
+    burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
+    burden_colnames = burden_colnames[burden_metrics_subset_indices]
+    burden_metric_names = burden_metric_names[burden_metrics_subset_indices]
+  }
+  
+  # first comparison name is to-present (skip it), second is BAU (use as reference), comparison scenarios start at the third index
+  if(include_to_present){
+    reference_experiment_name = experiment_names[2]
+    comparison_start_index = 3
+  } else{
+    reference_experiment_name = experiment_names[1]
+    comparison_start_index = 2  
+  }
+  # iterate through comparison scenarios, calculating the burden reduction of all metrics relative to BAU (seedwise comparisons, so one output for each run). Combine all scenario reductions into a dataframe (each scenario set in separate rows)
+  difference_burden_all_df = data.frame()
+  for(ss in comparison_start_index:length(scenario_names)){
+    comparison_experiment_name = experiment_names[ss]
+    comparison_scenario_name = scenario_names[ss]
+    difference_burden_df = get_difference_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, 
+                                             start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+    # only save relevant columns for plotting
+    difference_burden_df = difference_burden_df[,which(colnames(difference_burden_df) %in% c('scenario', 'Run_Number', burden_colnames))]
+    if(nrow(difference_burden_all_df) == 0){
+      difference_burden_all_df = difference_burden_df
+    }else{
+      difference_burden_all_df = rbind(difference_burden_all_df, difference_burden_df)
+    }
+  }
+  
+  # get factors in the correct order (rather than alphabetical)
+  difference_burden_all_df$scenario = factor(difference_burden_all_df$scenario, levels=scenario_names[comparison_start_index:length(scenario_names)])
+  
+  # get minimum and maximum reductions - these will be used if they are smaller / greater than the current min/max
+  standard_min_x = 0
+  standard_max_x = 0.1
+  cur_min = min(difference_burden_all_df[,2:(1+length(burden_colnames))])
+  cur_max = max(difference_burden_all_df[,2:(1+length(burden_colnames))])
+  if(cur_min < standard_min_x) standard_min_x = cur_min
+  if(cur_max > standard_max_x) standard_max_x = cur_max
+  
+  gg_list = list()
+  for(bb in 1:length(burden_colnames)){
+    current_burden_name = burden_colnames[bb]
+    burden_metric_name = burden_metric_names[bb]
+    select_col_names = c(current_burden_name, 'scenario')
+    # get mean, min, and max among all runs for this burden metric
+    rel_burden_agg = as.data.frame(difference_burden_all_df) %>% dplyr::select(match(select_col_names, names(.))) %>%
+      dplyr::group_by(scenario) %>%
+      dplyr::summarise(mean_rel = mean(get(current_burden_name)),
+                       max_rel = max(get(current_burden_name)),
+                       min_rel = min(get(current_burden_name)))
+    
+    gg_list[[bb]] = ggplot(rel_burden_agg) + 
+      geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+      ylab('Burden averted') + 
+      geom_hline(yintercept=0, color='black') +
+      ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
+      scale_fill_manual(values = scenario_palette) + 
+      theme_classic()+ 
+      theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text = element_text(size = text_size), legend.text=element_text(size = text_size), 
+            axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.line.x=element_blank(),
+            plot.margin=unit(c(0,1,1,0), 'cm'))
+    if(show_error_bar){
+      gg_list[[bb]] = gg_list[[bb]] +
+        geom_errorbar(aes(x=scenario, ymin=min_rel, ymax=max_rel), width=0.4, colour="black", alpha=0.9, size=1) 
+    }
+    if(separate_plots_flag){
+      separate_plot = gg_list[[bb]] + 
+        ylab('Burden averted \n ((Baseline - Plan)') + 
+        theme(legend.position='none', plot.title = element_blank(), text=element_text(size =separate_plot_text_size))
+      ggsave(paste0(sim_future_output_dir, '/_plots/','barplot_burden_averted_', burden_metric_name,'_',district_subset,'.png'), separate_plot, dpi=600, width=4, height=3, units='in')
+    }
+  }
+  # for each burden type, 
+  # get mean, min, and max among all runs for each burden metric, each saved as a separate column
+  # create barplot for each burden type (using columns of dataframe, separate bar for each scenario)
+  
+  gg_list = append(list(ggpubr::as_ggplot(ggpubr::get_legend(gg_list[[1]]))), gg_list)
+  # remove legend from main plots
+  for(bb in 2:(length(burden_colnames)+1)){
+    gg_list[[bb]] = gg_list[[bb]] + theme(legend.position = "none")  + theme(text = element_text(size = text_size))   
+  }
+  
+  if(save_plots){
+    gg_saved = grid.arrange(grobs = gg_list[-1], layout_matrix = matrix(c(1:(length(burden_colnames))), nrow=2, byrow=FALSE))
+    ggsave(paste0(sim_future_output_dir, '/_plots/barplot_burden_averted_', pyr, '_', chw_cov, 'CHW_',district_subset,'.png'), gg_saved, dpi=600, width=14, height=7, units='in')
+  }
+  
+  # ----- combine all burden plots ----- #
+  # gg = grid.arrange(grobs = gg_list, layout_matrix = matrix(c(1,1,2:(length(burden_colnames)+1)), ncol=2, byrow=TRUE))
+  gg = grid.arrange(grobs = gg_list, layout_matrix = rbind(matrix(rep(1, length(burden_colnames)/2), nrow=1), matrix(2:(length(burden_colnames)+1), nrow=2, byrow=FALSE)))
+  
+  return(gg)
+}
+
+
 
 
 
@@ -370,6 +488,90 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
   return(gg)
 }
 
+
+
+
+
+
+####################################################################################################################################
+# barplot of the impact a specific intervention has in relevant admins 
+#  (burden reduction when intervention is included versus matched simulation without the intervention)
+####################################################################################################################################
+
+
+table_difference_impact_specific_intervention = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins, 
+                                                     barplot_start_year, barplot_end_year, 
+                                                     pyr, chw_cov,
+                                                     experiment_names_without, experiment_names_with, intervention_name='PMC', age_group = 'U1', LLIN2y_flag=FALSE, overwrite_files=FALSE, align_seeds=TRUE,
+                                                     burden_metric_subset=c()){
+  admin_pop = read.csv(pop_filepath)
+  comparison_scenario_name = intervention_name
+  
+  # iterate through the matched pairs of experiments without / with the intervention
+  rel_burden_agg = data.frame()
+  if(length(experiment_names_without) == length(experiment_names_with)){
+    for(ii in 1:length(experiment_names_without)){
+      # first experiment is without interventions, second experiment is with intervention
+      reference_experiment_name = experiment_names_without[ii]
+      # calculating the burden reduction of all metrics relative to no intervention (seedwise comparisons, so one output for each run). 
+      comparison_experiment_name = experiment_names_with[ii]  
+      
+      # set which burden metrics are relevant and get relative burden between simulations
+      burden_metrics = c('PfPR', 'incidence', 'directMortality', 'allMortality')
+      if(age_group=='U1'){
+        warning('Have not yet added support for burden reduction for U1... need to add relevant functions')
+        # burden_colnames = c('average_PfPR_U1', 'incidence_U1', 'direct_death_rate_mean_U1', 'all_death_rate_mean_U1')
+        # burden_metric_names = c('PfPR (U1)', 'incidence (U1)', 'direct mortality (U1)', 'mortality (U1)')
+        # relative_burden_df = get_relative_U1_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+      } else if (age_group=='U5'){
+        burden_colnames = c('average_PfPR_U5', 'incidence_U5', 'direct_death_rate_mean_U5', 'all_death_rate_mean_U5')
+        burden_metric_names = c('PfPR (U5)', 'incidence (U5)', 'direct mortality (U5)', 'mortality (U5)')
+        relative_burden_df = get_difference_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+      }else{
+        burden_metrics = c(burden_metrics, 'mLBW_deaths', 'MiP_stillbirths')
+        burden_colnames = c('average_PfPR_all', 'incidence_all', 'direct_death_rate_mean_all', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
+        burden_metric_names = c('PfPR (all ages)', 'incidence (all ages)', 'direct mortality (all ages)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+        relative_burden_df = get_difference_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+      }
+      
+      
+      # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
+      if((length(burden_metric_subset)>=1)){
+        burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
+        burden_colnames = burden_colnames[burden_metrics_subset_indices]
+        burden_metric_names = burden_metric_names[burden_metrics_subset_indices]
+      }
+      
+      # only save relevant columns for plotting
+      relative_burden_df = relative_burden_df[,which(colnames(relative_burden_df) %in% c('scenario', 'Run_Number', burden_colnames))]
+      
+      for(bb in 1:length(burden_colnames)){
+        current_burden_name = burden_colnames[bb]
+        burden_metric_name = burden_metric_names[bb]
+        select_col_names = c(current_burden_name, 'scenario')
+        # get mean, min, and max among all runs for this burden metric
+        rel_burden_agg_bb = as.data.frame(relative_burden_df) %>% dplyr::select(match(select_col_names, names(.))) %>%
+          dplyr::group_by(scenario) %>%
+          dplyr::summarise(mean_rel = mean(get(current_burden_name)),
+                           max_rel = max(get(current_burden_name)),
+                           min_rel = min(get(current_burden_name)))
+        rel_burden_agg_bb$burden_metric = burden_metric_name
+        rel_burden_agg_bb$scenario_name = experiment_names_with[ii]
+        if(nrow(rel_burden_agg)<1){
+          rel_burden_agg = rel_burden_agg_bb
+        } else{
+          rel_burden_agg = merge(rel_burden_agg, rel_burden_agg_bb, all=TRUE)
+        }
+      }
+    }
+  }
+  
+  rel_burden_agg$burden_metric = gsub('\\(births\\)', '', rel_burden_agg$burden_metric)
+  rel_burden_agg$burden_metric = factor(rel_burden_agg$burden_metric, levels=gsub('\\(births\\)', '', burden_metric_names))
+  rel_burden_agg$scenario_name = factor(rel_burden_agg$scenario_name, levels=experiment_names_with)
+  
+  return(rel_burden_agg)
+}
 
 
 
@@ -746,7 +948,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
 plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_filepath, grid_layout_state_locations,
                                              min_year, max_year, sim_end_years, relative_year=NA,
                                              scenario_filepaths, scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, 
-                                             extend_past_timeseries_year=NA, scenario_linetypes=NA){
+                                             extend_past_timeseries_year=NA, scenario_linetypes=NA,filename_suffix=''){
   if (!is.na(relative_year)){ if(relative_year<min_year){
     warning('specified minimum year must be <= relative year. Setting min_year to relative_year.')
     min_year = relative_year
@@ -896,7 +1098,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
 
-      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,'.png'), gg, dpi=600, width=12, height=10, units='in')
+      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.7, height=10*0.7, units='in')
   }
   return(gg)
 }
@@ -1645,7 +1847,7 @@ plot_burden_maps = function(sim_future_output_dir, pop_filepath, district_subset
 
 
 
-# plot map with the reduction in burden relative to teh first scenario
+# plot map with the reduction in burden relative to the first scenario
 plot_burden_relative_reduction_maps = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins,
                             barplot_start_year, barplot_end_year,
                             pyr, chw_cov,

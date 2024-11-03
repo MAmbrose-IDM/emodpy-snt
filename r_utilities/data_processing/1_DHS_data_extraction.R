@@ -924,35 +924,35 @@ plot_extracted_DHS_data = function(hbhi_dir, years, admin_shape, min_num_total=3
   # plots of cluster-level DHS results
   #=========================================================================================================##
   if(!dir.exists(paste0(hbhi_dir,'/estimates_from_DHS/plots'))) dir.create(paste0(hbhi_dir,'/estimates_from_DHS/plots'))
-  # if(plot_separate_pdfs){
-  #   for(yy in 1:length(years)){
-  #     pdf(paste0(hbhi_dir, '/estimates_from_DHS/plots/DHS_',vacc_string, 'cluster_observations_', years[yy], '.pdf'), width=7, height=5, useDingbats = FALSE)
-  #     par(mfrow=c(1,1))
-  #     for(i_var in 1:length(variables)){
-  #       var = variables[i_var]
-  #       cluster_obs = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',vacc_string, 'cluster_outputs_', years[yy], '.csv'))[,-1]
-  #       cluster_obs$latitude[which(cluster_obs$latitude == 0)] = NA
-  #       cluster_obs$longitude[which(cluster_obs$longitude == 0)] = NA
-  #       if(paste0(var,'_num_total') %in% colnames(cluster_obs)){
-  #         max_survey_size = max(cluster_obs[[paste0(var,'_num_total')]], na.rm=TRUE)
-  #         layout(matrix(c(1,1,1,2, 1,1,1,3),nrow=2, byrow=TRUE))
-  #         plot(admin_shape, main=var)
-  #         points(cluster_obs$longitude, cluster_obs$latitude, col=colors_range_0_to_1[1+round(cluster_obs[[paste0(var,'_rate')]]*100)], pch=20, cex=cluster_obs[[paste0(var,'_num_total')]]/round(max_survey_size/5))#, xlim=c(min(cluster_obs$longitude), max(cluster_obs$longitude)), ylim=c(min(cluster_obs$latitude), max(cluster_obs$latitude)))
-  #         # legend - colorbar
-  #         legend_image = as.raster(matrix(rev(colors_range_0_to_1[1+round(seq(0,1,length.out=20)*100)]), ncol=1))
-  #         plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = var)
-  #         text(x=1.5, y = seq(0,1,length.out=5), labels = seq(0,1,length.out=5))
-  #         rasterImage(legend_image, 0, 0, 1,1)
-  #         # legend - survey size
-  #         plot(rep(0,5), seq(1, max_survey_size, length.out=5), cex=seq(1,max_survey_size, length.out=5)/round(max_survey_size/5), pch=20, axes=FALSE, xlab='', ylab='sample size'); axis(2)
-  #       }
-  #     }
-  #     dev.off()
-  #   }
-  # }
-  # 
-  # 
-  # 
+  if(plot_separate_pdfs){
+    for(yy in 1:length(years)){
+      pdf(paste0(hbhi_dir, '/estimates_from_DHS/plots/DHS_',vacc_string, 'cluster_observations_', years[yy], '.pdf'), width=7, height=5, useDingbats = FALSE)
+      par(mfrow=c(1,1))
+      for(i_var in 1:length(variables)){
+        var = variables[i_var]
+        cluster_obs = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',vacc_string, 'cluster_outputs_', years[yy], '.csv'))[,-1]
+        cluster_obs$latitude[which(cluster_obs$latitude == 0)] = NA
+        cluster_obs$longitude[which(cluster_obs$longitude == 0)] = NA
+        if(paste0(var,'_num_total') %in% colnames(cluster_obs)){
+          max_survey_size = max(cluster_obs[[paste0(var,'_num_total')]], na.rm=TRUE)
+          layout(matrix(c(1,1,1,2, 1,1,1,3),nrow=2, byrow=TRUE))
+          plot(admin_shape, main=var)
+          points(cluster_obs$longitude, cluster_obs$latitude, col=colors_range_0_to_1[1+round(cluster_obs[[paste0(var,'_rate')]]*100)], pch=20, cex=cluster_obs[[paste0(var,'_num_total')]]/round(max_survey_size/5))#, xlim=c(min(cluster_obs$longitude), max(cluster_obs$longitude)), ylim=c(min(cluster_obs$latitude), max(cluster_obs$latitude)))
+          # legend - colorbar
+          legend_image = as.raster(matrix(rev(colors_range_0_to_1[1+round(seq(0,1,length.out=20)*100)]), ncol=1))
+          plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = var)
+          text(x=1.5, y = seq(0,1,length.out=5), labels = seq(0,1,length.out=5))
+          rasterImage(legend_image, 0, 0, 1,1)
+          # legend - survey size
+          plot(rep(0,5), seq(1, max_survey_size, length.out=5), cex=seq(1,max_survey_size, length.out=5)/round(max_survey_size/5), pch=20, axes=FALSE, xlab='', ylab='sample size'); axis(2)
+        }
+      }
+      dev.off()
+    }
+  }
+
+
+
   ##=========================================================================================================##
   # plots of cluster-level DHS results - separated by interventions, each plot panel showing across years
   ##=========================================================================================================##
@@ -963,7 +963,7 @@ plot_extracted_DHS_data = function(hbhi_dir, years, admin_shape, min_num_total=3
       variables2 = variables[variables %in% c('mic', 'rdt', 'itn_all', 'itn_u5', 'iptp','cm','received_treatment','sought_treatment','blood_test', 'art')]
     } else variables2 = variables
     nyears = length(years)
-    
+
     if(separate_plots_for_each_var){
       for(i_var in 1:length(variables2)){
         var = variables2[i_var]
@@ -1029,37 +1029,37 @@ plot_extracted_DHS_data = function(hbhi_dir, years, admin_shape, min_num_total=3
       dev.off()
     }
   }
-  # 
-  # 
-  # 
+  #
+  #
+  #
   # ####=========================================================================================================####
   # # map of LGA-level DHS results, allowing for aggregation to admin1 level when sample sizes too small
   # ####=========================================================================================================####
-  # if(plot_separate_pdfs){
-  #   for(yy in 1:length(years)){
-  #     pdf(paste0(hbhi_dir, '/estimates_from_DHS/plots/DHS_',vacc_string, 'admin_minN', min_num_total,'_', years[yy], '.pdf'), width=7, height=5, useDingbats = FALSE)
-  #     for(i_var in 1:length(variables)){
-  #       var = variables[i_var]
-  #       admin_sums0 = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',vacc_string, 'admin_minN', min_num_total,'_', years[yy], '.csv'))[,-1]
-  #       reorder_admins = match(sapply(admin_shape$NOMDEP, match_lga_names), sapply(admin_sums0$NOMDEP, match_lga_names))
-  #       admin_sums = admin_sums0[reorder_admins,]
-  #       if(all(sapply(admin_shape$NOMDEP, match_lga_names) == sapply(admin_sums$NOMDEP, match_lga_names))){
-  #         if(paste0(var,'_num_total') %in% colnames(admin_sums)){
-  #           layout(matrix(c(1,1,1,2, 1,1,1,3),nrow=2, byrow=TRUE))
-  #           admin_colors = colors_range_0_to_1[1+round(admin_sums[[paste0(var,'_rate')]]*100)]
-  #           plot(admin_shape, main=var, col=admin_colors)
-  #           
-  #           # legend - colorbar
-  #           legend_image = as.raster(matrix(rev(colors_range_0_to_1[1+round(seq(0,1,length.out=20)*100)]), ncol=1))
-  #           plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = var)
-  #           text(x=1.5, y = seq(0,1,length.out=5), labels = seq(0,1,length.out=5))
-  #           rasterImage(legend_image, 0, 0, 1,1)
-  #         }
-  #       } else warning('during plot generation, order of districts in shapefile and data frame did not match, skipping plotting.')
-  #     }
-  #     dev.off()
-  #   }
-  # }
+  if(plot_separate_pdfs){
+    for(yy in 1:length(years)){
+      pdf(paste0(hbhi_dir, '/estimates_from_DHS/plots/DHS_',vacc_string, 'admin_minN', min_num_total,'_', years[yy], '.pdf'), width=7, height=5, useDingbats = FALSE)
+      for(i_var in 1:length(variables)){
+        var = variables[i_var]
+        admin_sums0 = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',vacc_string, 'admin_minN', min_num_total,'_', years[yy], '.csv'))[,-1]
+        reorder_admins = match(sapply(admin_shape$NOMDEP, match_lga_names), sapply(admin_sums0$NOMDEP, match_lga_names))
+        admin_sums = admin_sums0[reorder_admins,]
+        if(all(sapply(admin_shape$NOMDEP, match_lga_names) == sapply(admin_sums$NOMDEP, match_lga_names))){
+          if(paste0(var,'_num_total') %in% colnames(admin_sums)){
+            layout(matrix(c(1,1,1,2, 1,1,1,3),nrow=2, byrow=TRUE))
+            admin_colors = colors_range_0_to_1[1+round(admin_sums[[paste0(var,'_rate')]]*100)]
+            plot(admin_shape, main=var, col=admin_colors)
+
+            # legend - colorbar
+            legend_image = as.raster(matrix(rev(colors_range_0_to_1[1+round(seq(0,1,length.out=20)*100)]), ncol=1))
+            plot(c(0,2),c(0,1),type = 'n', axes = F,xlab = '', ylab = '', main = var)
+            text(x=1.5, y = seq(0,1,length.out=5), labels = seq(0,1,length.out=5))
+            rasterImage(legend_image, 0, 0, 1,1)
+          }
+        } else warning('during plot generation, order of districts in shapefile and data frame did not match, skipping plotting.')
+      }
+      dev.off()
+    }
+  }
 
 
 
