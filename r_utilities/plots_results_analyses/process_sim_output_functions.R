@@ -621,6 +621,74 @@ get_relative_U1_burden = function(sim_output_filepath, reference_experiment_name
 
 
 
+####################################################################################
+# absolute difference in simulation burden between two experiments over specified time interval
+####################################################################################
+
+get_difference_burden = function(sim_output_filepath, reference_experiment_name, comparison_experiment_name, comparison_scenario_name, start_year, end_year, admin_pop, district_subset='allDistricts', cur_admins='all', 
+                               LLIN2y_flag=FALSE, overwrite_files=FALSE, align_seeds=TRUE ){
+  #'  @description get relative change in U5 and all-age burden when comparing between two simulations in specified years and in specified districts (for all malaria metrics, separate values for each seed)
+  #'  @return data frame where each row is a seed and each column is the relative change of different burden metrics, calculated as (reference-comparison) / reference:
+  
+  reference_df = get_cumulative_burden(sim_output_filepath=sim_output_filepath, experiment_name=reference_experiment_name, start_year=start_year, end_year=end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+  comparison_df = get_cumulative_burden(sim_output_filepath=sim_output_filepath, experiment_name=comparison_experiment_name, start_year=start_year, end_year=end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+  
+  if(align_seeds){  # compare one run seed against the matching run seed in the other experiment
+    # align seeds
+    reference_df = reference_df[order(reference_df$Run_Number),]
+    comparison_df = comparison_df[order(comparison_df$Run_Number),]
+  } else{  # compare the averages across all seeds from one experiment against the average from the other experiment
+    reference_df = reference_df %>% summarise_all(mean)
+    comparison_df = comparison_df %>% summarise_all(mean)
+  }
+  difference_burden_df = data.frame('Run_Number' = reference_df$Run_Number)
+  # iterate through burden indicators, calculating relative burden and adding to dataframe
+  burden_indicators = colnames(reference_df)[-which(colnames(reference_df) == 'Run_Number')]
+  for(bb in 1:length(burden_indicators)){
+    difference_burden_cur = (reference_df[[burden_indicators[bb]]] - comparison_df[[burden_indicators[bb]]])
+    difference_burden_df[[burden_indicators[bb]]] = difference_burden_cur
+  }
+  difference_burden_df$scenario = comparison_scenario_name
+  return(difference_burden_df)
+}
+
+
+
+# get relative burden by state for grid plot
+get_difference_burden_by_state = function(sim_output_filepath, reference_experiment_name, comparison_experiment_name, comparison_scenario_name, start_year, end_year, admin_pop, district_subset='allDistricts', cur_admins='all', 
+                                        LLIN2y_flag=FALSE, overwrite_files=FALSE, align_seeds=TRUE ){
+  #'  @description get relative change in U5 and all-age burden when comparing between two simulations in specified years and in specified districts (for all malaria metrics, separate values for each seed)
+  #'  @return data frame where each row is a seed and each column is the relative change of different burden metrics, calculated as (reference-comparison) / reference:
+  
+  reference_df = get_cumulative_burden_by_state(sim_output_filepath=sim_output_filepath, experiment_name=reference_experiment_name, start_year=start_year, end_year=end_year, admin_pop=admin_pop, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+  comparison_df = get_cumulative_burden_by_state(sim_output_filepath=sim_output_filepath, experiment_name=comparison_experiment_name, start_year=start_year, end_year=end_year, admin_pop=admin_pop, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+  
+  if(align_seeds){  # compare one run seed against the matching run seed in the other experiment
+    # align seeds and states into same order
+    reference_df = reference_df[order(reference_df$State, reference_df$Run_Number),]
+    comparison_df = comparison_df[order(comparison_df$State, comparison_df$Run_Number),]
+  } else{  # compare the averages across all seeds from one experiment against the average from the other experiment
+    reference_df = reference_df %>% group_by(State) %>% summarise_all(mean)
+    comparison_df = comparison_df %>% group_by(State) %>% summarise_all(mean)
+    # align states into same order
+    reference_df = reference_df[order(reference_df$State),]
+    comparison_df = comparison_df[order(comparison_df$State),]
+  }
+  difference_burden_df = data.frame('State'=reference_df$State, 'Run_Number'=reference_df$Run_Number)
+  # iterate through burden indicators, calculating relative burden and adding to dataframe
+  burden_indicators = colnames(reference_df)[-which(colnames(reference_df) %in% c('State', 'Run_Number'))]
+  for(bb in 1:length(burden_indicators)){
+    difference_burden_cur = (reference_df[[burden_indicators[bb]]] - comparison_df[[burden_indicators[bb]]])
+    difference_burden_df[[burden_indicators[bb]]] = difference_burden_cur
+  }
+  difference_burden_df$scenario = comparison_scenario_name
+  return(difference_burden_df)
+}
+
+
+
+
+
 
 ####################################################################################
 # timeseries of simulation burden and/or interventions
@@ -721,8 +789,8 @@ get_burden_timeseries_exp = function(exp_filepath, exp_name, district_subset, cu
     }
     
     cur_sim_output_agg$scenario = exp_name
+    write.csv(cur_sim_output_agg, output_filename, row.names=FALSE)
   }
-  write.csv(cur_sim_output_agg, output_filename, row.names=FALSE)
   return(cur_sim_output_agg)
 }
 
