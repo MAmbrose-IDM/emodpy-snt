@@ -116,7 +116,10 @@ get_total_burden = function(sim_output_filepath, experiment_name, admin_pop, com
   }
   return(burden_means)
 }
-# 
+
+
+
+
 # 
 # 
 # 
@@ -333,7 +336,7 @@ get_cumulative_burden = function(sim_output_filepath, experiment_name, start_yea
 
 
 # total over a time period for each state
-get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, start_year, end_year, admin_pop, LLIN2y_flag=FALSE, overwrite_files=FALSE){
+get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, start_year, end_year, admin_pop, LLIN2y_flag=FALSE, overwrite_files=FALSE, mean_across_seeds=FALSE){
   #'  @description get cumulative U5 and all-age burden over specified years in each state (for all malaria metrics, separate values for each seed)
   #'  @return save and return data frame where each row is a seed x state and each column is the total over all included years of different burden metrics:
   #'      sum of:
@@ -433,7 +436,16 @@ get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, 
                                                                         'direct_death_rate_1_all', 'direct_death_rate_2_all',  'all_death_rate_1_all', 'all_death_rate_2_all', 
                                                                         'direct_death_rate_1_U5', 'direct_death_rate_2_U5', 'all_death_rate_1_U5', 'all_death_rate_2_U5', 
                                                                         'direct_death_rate_mean_all', 'direct_death_rate_mean_U5', 'all_death_rate_mean_all', 'all_death_rate_mean_U5'))]
+    
+    if(mean_across_seeds){
+      df_aggregated = df_aggregated %>% group_by(State) %>%
+        summarise_all(mean, na.rm=TRUE)
+    }
     write.csv(df_aggregated, output_filename, row.names=FALSE)
+  }
+  if(mean_across_seeds){
+    df_aggregated = df_aggregated %>% group_by(State) %>%
+      summarise_all(mean, na.rm=TRUE)
   }
   return(df_aggregated)
 }

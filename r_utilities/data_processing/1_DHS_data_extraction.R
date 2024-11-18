@@ -15,6 +15,7 @@ library(sp)
 library(pals)
 library(prettyGraphs) 
 library(stringr)
+library(haven)
 
 
 # function to read in relevant dta file and extract the number of positive and negative results, along with the number tested in each cluster and cluster locations
@@ -112,6 +113,46 @@ get_cluster_level_vacc_outputs = function(dta_dir, cur_dta, DHS_file_recode_df, 
   MIS_outputs = merge(MIS_outputs, dta_cluster_0, by.y=DHS_file_recode_df$cluster_id_code[var_index], by.x='clusterid', all=TRUE)
   return(MIS_outputs)
 }
+
+
+
+
+
+
+# function to read in relevant dta file and extract the number of positive and negative results, along with the number tested in each cluster and cluster locations
+get_cluster_level_vacc_mics_outputs = function(dta_dir, cur_dta, DHS_file_recode_df, var_index, MIS_outputs, include_itn_weight=FALSE, alternate_positive_patterns = c('vaccination date on card','vaccination marked on card', 'reported by mother'),
+                                               min_age_months_included=12){
+  cur_dta$pos = NA
+  cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == DHS_file_recode_df$pos_pattern[var_index])] = 1
+  cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == DHS_file_recode_df$neg_pattern[var_index])] = 0
+  if(length(alternate_positive_patterns)>0){
+    for(alt_pos_pattern in alternate_positive_patterns){
+      cur_dta$pos[which(cur_dta[,which(colnames(cur_dta) == DHS_file_recode_df$code[var_index])] == alt_pos_pattern)] = 1
+    }
+  }
+
+  # only include entries above the minimum age
+  cur_dta$over_min_age = cur_dta[[DHS_file_recode_df$age_code[var_index]]] > (min_age_months_included*30.4)
+  
+  # # compare rates of positivity between all ages and ages over min (for debugging/checking)
+  # sum(cur_dta$pos, na.rm=T)/sum(!is.na(cur_dta$pos))  # fraction with the vaccine among all ages
+  # sum(cur_dta$pos[(cur_dta$over_min_age)], na.rm=T)/sum(!is.na(cur_dta$pos[(cur_dta$over_min_age)]))  # fraction with the vaccine among those over the minimum age
+  
+  # remove entries for individuals under the age cutoff (i.e., who are to young to have received the vaccine yet)
+  cur_dta$pos[!(cur_dta$over_min_age)] = NA
+  
+  dta_cluster_0 = cur_dta  %>%
+    filter(!is.na(cur_dta$pos)) %>%
+    group_by_at(DHS_file_recode_df$cluster_id_code[var_index]) %>%
+    summarize(rate = mean(pos, na.rm = TRUE),
+              num_pos = sum(pos),
+              num_tested = n()) 
+  
+  # match 'hv001' with 'clusterid'
+  MIS_outputs = merge(MIS_outputs, dta_cluster_0, by.y=DHS_file_recode_df$cluster_id_code[var_index], by.x='clusterid', all=TRUE)
+  return(MIS_outputs)
+}
+
 
 
 
@@ -797,6 +838,198 @@ extract_vaccine_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop
 
 
  
+
+
+
+
+
+
+
+
+
+
+
+
+
+# extract cluster-level data for EPI vaccination coverages for single year
+extract_vaccine_MICS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop_df_filename, min_num_total=30, vaccine_variables=c('vacc_dpt1', 'vacc_dpt2', 'vacc_dpt3'), vaccine_alternate_positive_patterns=c('reported by mother', 'vaccination marked on card'),
+                                    min_age_months_included=12, use_admin_level=FALSE){
+  
+  ####=========================================================================================================####
+  # create csvs with cluster-level and admin-level counts and rates for all vaccination variables
+  ####=========================================================================================================####
+  
+  DHS_file_recode_df = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/MICS_',year,'_files_recodes_for_sims.csv'))
+  location_index = which(DHS_file_recode_df$variable == 'locations')
+  locations_shp = shapefile(paste0(dta_dir, '/', DHS_file_recode_df$folder_dir[location_index], '/', DHS_file_recode_df$filename[location_index]))
+  locations = data.frame(clusterid = locations_shp$HH1, latitude=locations_shp$LATITUDE, longitude=locations_shp$LONGITUDE)
+  MIS_outputs = locations
+  
+  for(vv in 1:length(vaccine_variables)){
+    var_index = which(DHS_file_recode_df$variable == vaccine_variables[vv])
+    if(!is.na(DHS_file_recode_df$filename[var_index])){
+      cur_dta = read_sav(paste0(dta_dir, '/', DHS_file_recode_df$folder_dir[var_index], '/', DHS_file_recode_df$filename[var_index]))
+      MIS_outputs=get_cluster_level_vacc_mics_outputs(dta_dir=dta_dir, cur_dta=cur_dta, DHS_file_recode_df=DHS_file_recode_df, var_index=var_index, MIS_outputs=MIS_outputs, alternate_positive_patterns=vaccine_alternate_positive_patterns,
+                                                      min_age_months_included=DHS_file_recode_df$min_age_months_to_include[var_index])
+      colnames(MIS_outputs)[colnames(MIS_outputs)=='rate'] = paste0(vaccine_variables[vv], '_rate')
+      colnames(MIS_outputs)[colnames(MIS_outputs)=='num_pos'] = paste0(vaccine_variables[vv], '_num_true')
+      colnames(MIS_outputs)[colnames(MIS_outputs)=='num_tested'] = paste0(vaccine_variables[vv], '_num_total')
+    }
+  }
+  
+  ####=========================================================================================================####
+  # determine which clusters are in which admins
+  ####=========================================================================================================####
+  # turn MIS output data frame into spatial points data frame
+  points_crs = crs(admin_shape)
+  MIS_shape = SpatialPointsDataFrame(MIS_outputs[,c('longitude', 'latitude')],
+                                     MIS_outputs,
+                                     proj4string = points_crs)
+  # find which admins each cluster belongs to
+  MIS_locations = over(MIS_shape, admin_shape)
+  MIS_locations$NOMDEP = MIS_locations$GEONAMET
+  MIS_locations$NOMREGION = MIS_locations$GEONAMES
+  if(nrow(MIS_locations) == nrow(MIS_shape)){
+    MIS_shape$NOMDEP = MIS_locations$NOMDEP
+    MIS_shape$NOMREGION = MIS_locations$NOMREGION
+    # MIS_shape$NAME_1 = MIS_locations$NAME_1
+  }
+   write.csv(as.data.frame(MIS_shape), paste0(hbhi_dir, '/estimates_from_DHS/MICS_vaccine_cluster_outputs_', year, '.csv'))
+  
+  
+  ####=========================================================================================================####
+  #   get values for each admin
+  ####=========================================================================================================####
+  # aggregate across clusters to get total number tested and positive within each admin and within each region for all variables
+  MIS_shape = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/MICS_vaccine_cluster_outputs_', year, '.csv'))[,-1]
+  # remove rows without known admin/region
+  MIS_shape = MIS_shape[!is.na(MIS_shape$NOMREGION),]
+  
+  # standardize admin and state names
+  archetype_info = read.csv(ds_pop_df_filename)
+  if(use_admin_level){
+    MIS_shape$admin_name = standardize_admin_names_in_vector(target_names=archetype_info$admin_name, origin_names=MIS_shape$NOMDEP)
+    MIS_shape = standardize_admin_names_in_df(target_names_df=archetype_info, origin_names_df=MIS_shape, target_names_col='admin_name', origin_names_col='NOMDEP', additional_id_col='State', possible_suffixes=c(1,2, 3))
+  }
+  MIS_shape$State = MIS_shape$NOMREGION
+  MIS_shape = standardize_state_names_in_df(target_names_df=archetype_info, origin_names_df=MIS_shape, target_names_col='State', origin_names_col='State')
+  
+  if(use_admin_level){
+    # admin level values
+    include_cols = c(which(names(MIS_shape) %in% c('NOMREGION','NOMDEP')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+    admin_sums = MIS_shape[,include_cols] %>% 
+      group_by(NOMREGION, NOMDEP) %>%
+      summarise_all(sum, na.rm = TRUE)
+    
+    for(var in vaccine_variables){
+      if(paste0(var,'_num_true') %in% colnames(admin_sums)){
+        admin_sums[[paste0(var, '_rate')]] = admin_sums[[paste0(var,'_num_true')]] / admin_sums[[paste0(var,'_num_total')]]
+      }
+    }
+    
+    # add any admins that did not have any DHS clusters (with all NAs and 0s) and record which state and archetype each cluster belongs to
+    colnames(archetype_info)[colnames(archetype_info)=='LGA'] = 'NOMDEP'
+    colnames(archetype_info)[colnames(archetype_info)=='DS'] = 'NOMDEP'
+    colnames(archetype_info)[colnames(archetype_info)=='admin_name'] = 'NOMDEP'
+    colnames(archetype_info)[colnames(archetype_info)=='State'] = 'NOMREGION'
+    # colnames(archetype_info)[colnames(archetype_info)=='NOMDEP'] = 'NOMDEP_target'
+    archetype_info$name_match = sapply(archetype_info$NOMDEP, match_lga_names)
+    archetype_info = archetype_info[,c('name_match', 'NOMDEP', 'NOMREGION', 'Archetype')]
+    admin_sums$name_match = sapply(admin_sums$NOMDEP, match_lga_names)
+    colnames(admin_sums)[colnames(admin_sums) == 'NOMDEP'] = 'NOMDEP_dhs_orig'
+    admin_sums_expanded = merge(admin_sums, archetype_info, all=TRUE)
+    # admin_sums_expanded$NOMDEP[is.na(admin_sums_expanded$NOMDEP)] = admin_sums_expanded$NOMDEP_backup[is.na(admin_sums_expanded$NOMDEP)]
+    # check that all names have been matched successfully
+    if(length(admin_sums$name_match[which(!(admin_sums$name_match %in% archetype_info$name_match))])>0) warning('Not all LGA names from the shapefile were matched with archetype file')
+    if(length(admin_sums$NOMREGION[which(!(admin_sums$NOMREGION %in% archetype_info$NOMREGION))])>0) warning('Not all state names from the shapefile were matched with archetype file')
+    # remove extra columns
+    admin_sums_expanded = admin_sums_expanded[,-c(which(colnames(admin_sums_expanded) %in% c('NOMDEP_dhs_orig', 'name_match')))]
+    # change to zero sample size for admins that were not included in DHS
+    admin_sums_expanded[,grep('num_total', names(admin_sums_expanded))][is.na(admin_sums_expanded[,grep('num_total', names(admin_sums_expanded))])] = 0
+    write.csv(as.data.frame(admin_sums), paste0(hbhi_dir, '/estimates_from_DHS/MICS_vaccine_admin_', year, '.csv'))
+    admin_sums = admin_sums_expanded
+  }
+  
+  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+  # when the number surveyed in a admin is lower than the threshold, use the region value instead
+  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+  # region level values
+  include_cols = c(which(names(MIS_shape) %in% c('NOMREGION', 'State')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+  region_sums = MIS_shape[,include_cols] %>% 
+    group_by(NOMREGION, State) %>%
+    summarise_all(sum, na.rm = TRUE)
+  for(var in vaccine_variables){
+    if(paste0(var,'_num_true') %in% colnames(region_sums)){
+      region_sums[[paste0(var, '_rate')]] = region_sums[[paste0(var,'_num_true')]] / region_sums[[paste0(var,'_num_total')]]
+    }
+  }
+  write.csv(as.data.frame(region_sums), paste0(hbhi_dir, '/estimates_from_DHS/MICS_vaccine_state_', year, '.csv'))
+  
+  
+  if(use_admin_level){
+    for(var in vaccine_variables){
+      if(paste0(var,'_num_true') %in% colnames(admin_sums)){
+        for(i_admin in 1:nrow(admin_sums)){
+          if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
+            admin_sums[[paste0(var,'_num_total')]][i_admin] = region_sums[[paste0(var,'_num_total')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
+            admin_sums[[paste0(var,'_num_true')]][i_admin] = region_sums[[paste0(var,'_num_true')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
+            admin_sums[[paste0(var,'_rate')]][i_admin] = region_sums[[paste0(var,'_rate')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
+          }
+        }
+      }
+    }
+
+  
+    #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # when the number surveyed in a admin1 is lower than the threshold, use the archetype value instead
+    #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # archetype level values
+    MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', 'Archetype')]), all=TRUE)
+    include_cols = c(which(names(MIS_shape) %in% c('Archetype')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+    arch_sums = MIS_shape[,include_cols] %>% 
+      group_by(Archetype) %>%
+      summarise_all(sum, na.rm = TRUE)
+    for(var in vaccine_variables){
+      if(paste0(var,'_num_true') %in% colnames(arch_sums)){
+        arch_sums[[paste0(var, '_rate')]] = arch_sums[[paste0(var,'_num_true')]] / arch_sums[[paste0(var,'_num_total')]]
+      }
+    }
+    
+    for(var in vaccine_variables){
+      if(paste0(var,'_num_true') %in% colnames(admin_sums)){
+        for(i_admin in 1:nrow(admin_sums)){
+          if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
+            admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+            admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+            admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+          }
+        }
+      }
+    }
+    
+    # save different version with specified minimum sample size in admin before using region value
+    write.csv(as.data.frame(admin_sums), paste0(hbhi_dir, '/estimates_from_DHS/MICS_vaccine_admin_minN',min_num_total,'_', year, '.csv'))
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
