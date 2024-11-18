@@ -33,11 +33,11 @@ create_reference_name_match = function(lga_name){
   # first value (the name) is the one that is replaced by the second value
   replace_list = list(
                       # NGA 
-                      # 'IFELODUN' = 'IFELODUN1',
-                      # 'IREPODUN' = 'IREPODUN1',
-                      # 'BASSA' = 'BASSA1',
-                      # 'NASARAWA' = 'NASARAWA2',
-                      # 'SURULERE' = 'SURULERE2',
+                      # 'IFELODUN' = 'IFELODUN1', 'IFELODUN2',
+                      # 'IREPODUN' = 'IREPODUN1', 'IREPODUN2',
+                      # 'BASSA' = 'BASSA1', 'BASSA2',
+                      # 'NASARAWA' = 'NASARAWA1', 'NASARAWA2',
+                      # 'SURULERE' = 'SURULERE1', 'SURULERE2',
                       # 'OBI' = 'OBI2',
                       'GANYE' = 'GANAYE',
                       'GIREI' = 'GIRERI',
@@ -71,6 +71,14 @@ create_reference_name_match = function(lga_name){
                       'BARDE' = 'BADE',
                       'BORSARI' = 'BURSARI',
                       'TARMUWA' = 'TARMUA',
+                      'EGBADO-NORTH' = 'YEWA-NORTH',
+                      'EGBADO-SOUTH' = 'YEWA-SOUTH',
+                      'ILEMEJI' = 'ILEJEMEJE',
+                      'GBOYIN' = 'AIYEKIRE-(GBOYIN)',
+                      'UMU-NEOCHI' = 'UMU-NNEOCHI',
+                      'IBADAN-NORTH-EAST' = 'IBADAN-CENTRAL-(IBADAN-NORTH-EAST)',
+                      'NAFADA' = 'NAFADA-(BAJOGA)',
+                      
                       # BDI
                       'BUJUMBURA-CENTRE' = 'ZONE-CENTRE',
                       'BUJUMBURA-NORD' = 'ZONE-NORD',
@@ -82,6 +90,7 @@ create_reference_name_match = function(lga_name){
                       # state names
                       'AKWA-LBOM' = 'AKWA-IBOM',
                       'FEDERAL-CAPITAL-TERRITORY' = 'FCT-ABUJA',
+                      'ABUJA-FCT' = 'FCT-ABUJA',
                       'FCT' = 'FCT-ABUJA',
                       'CROSS-RIVER' = 'CRORIVER'
 
@@ -92,53 +101,70 @@ create_reference_name_match = function(lga_name){
   return(lga_name)
 }
 
-standardize_admin_names_in_df = function(target_names_df, origin_names_df, target_names_col='admin_name', origin_names_col='admin_name'){
+standardize_admin_names_in_df = function(target_names_df, origin_names_df, target_names_col='admin_name', origin_names_col='admin_name', unique_entries_flag=FALSE, additional_id_col='State', possible_suffixes=c(1,2,3)){
   #' given a dataframe with a column containing admin names, update the admin names to match the standardized naming conventions
   #' @param target_names_df dataframe containing a column with the admin names that should be used as the standard
   #' @param origin_names_df dataframe containing a column with admin names that user would like to update to the standard
   #' @param target_names_col name of column in target_names_df where the standard admin names are found
   #' @param origin_names_col name of column in origin_names_df where the to-be-updated admin names are found
   #' @return the origin_names_df data frame, with the admin names replaced with the standardized version
-  
-  if(any(duplicate_names %in% toupper(origin_names_df[[origin_names_col]]))){
-    stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
-  } else{
-    
-    target_names_df$matched_name = sapply(target_names_df[[target_names_col]], create_reference_name_match)
-    origin_names_df$matched_name = sapply(origin_names_df[[origin_names_col]], create_reference_name_match)
-    
-    # check whether all names from the origin source are now matched to one of the target names
-    if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
-      warning('Some of the source admin names could not be matched with a target admin name')
-      View(distinct(origin_names_df[which(!(origin_names_df$matched_name %in% target_names_df$matched_name)), c('matched_name', 'State')]))
-      View(target_names_df[,c('matched_name', 'State')])
+
+  if(unique_entries_flag){
+    duplicates = unique(origin_names_df[[origin_names_col]][which(duplicated(origin_names_df[[origin_names_col]]))])
+    if(length(duplicates)>0){
+      for(dd in 1:length(duplicates)){
+        duplicate_rows = which(origin_names_df[[origin_names_col]] == duplicates[dd])
+        # see whether the duplicated names can be distinguished based on value in additional_id_col
+        possible_match_rows = as.numeric(sapply(paste0(duplicates[dd], possible_suffixes), grep, target_names_df[[target_names_col]]))
+        possible_match_rows = possible_match_rows[!is.na(possible_match_rows)]
+        if(length(possible_match_rows) == length(duplicate_rows)){
+          origin_additional_ids = origin_names_df[[additional_id_col]][duplicate_rows]
+          target_additional_ids = target_names_df[[additional_id_col]][possible_match_rows]
+          if(all(origin_additional_ids %in% target_additional_ids)){
+            origin_names_df[[origin_names_col]][duplicate_rows] = target_names_df[[target_names_col]][possible_match_rows][match(origin_additional_ids, target_additional_ids)]
+          } else stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
+        } else stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
+      }
     } 
-    if('data.table' %in% class(origin_names_df)){  # changes how indexing works for columns in dataframe
-      origin_names_df = as.data.frame(origin_names_df)
-      was_data_table=TRUE
-    } else was_data_table = FALSE
-    if('data.table' %in% class(target_names_df)){  
-      target_names_df = as.data.frame(target_names_df)
-    }
-    # remove the original admin name column from the origin dataframe, and also the target name column if applicable (for merging)
-    origin_names_df = origin_names_df[,-(which(colnames(origin_names_df)==origin_names_col))]
-    if(target_names_col %in% colnames(origin_names_df)){
-      origin_names_df = origin_names_df[,-which(colnames(origin_names_df)==target_names_col)]
-    }
-    
-    # add the updated admin names to the dataframe, under the original admin column name
-    target_names_df =  target_names_df[,c('matched_name', target_names_col)]
-    updated_names_df = merge(origin_names_df, target_names_df, all.x=TRUE, by='matched_name')
-    colnames(updated_names_df)[colnames(updated_names_df)==target_names_col] = origin_names_col
-    
-    if(was_data_table) updated_names_df = as.data.table(updated_names_df)
-    return(updated_names_df)
+  } else if(any(duplicate_names %in% toupper(origin_names_df[[origin_names_col]]))){
+      stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
   }
+
+  target_names_df$matched_name = sapply(target_names_df[[target_names_col]], create_reference_name_match)
+  origin_names_df$matched_name = sapply(origin_names_df[[origin_names_col]], create_reference_name_match)
+  
+  # check whether all names from the origin source are now matched to one of the target names
+  if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
+    warning('Some of the source admin names could not be matched with a target admin name')
+    View(distinct(origin_names_df[which(!(origin_names_df$matched_name %in% target_names_df$matched_name)), c('matched_name', 'State')]))
+    View(distinct(target_names_df[which(!(target_names_df$matched_name %in% origin_names_df$matched_name)), c('matched_name', 'State')]))
+    View(target_names_df[,c('matched_name', 'State')])
+  } 
+  if('data.table' %in% class(origin_names_df)){  # changes how indexing works for columns in dataframe
+    origin_names_df = as.data.frame(origin_names_df)
+    was_data_table=TRUE
+  } else was_data_table = FALSE
+  if('data.table' %in% class(target_names_df)){  
+    target_names_df = as.data.frame(target_names_df)
+  }
+  # remove the original admin name column from the origin dataframe, and also the target name column if applicable (for merging)
+  origin_names_df = origin_names_df[,-(which(colnames(origin_names_df)==origin_names_col))]
+  if(target_names_col %in% colnames(origin_names_df)){
+    origin_names_df = origin_names_df[,-which(colnames(origin_names_df)==target_names_col)]
+  }
+  
+  # add the updated admin names to the dataframe, under the original admin column name
+  target_names_df =  target_names_df[,c('matched_name', target_names_col)]
+  updated_names_df = merge(origin_names_df, target_names_df, all.x=TRUE, by='matched_name')
+  colnames(updated_names_df)[colnames(updated_names_df)==target_names_col] = origin_names_col
+  
+  if(was_data_table) updated_names_df = as.data.table(updated_names_df)
+  return(updated_names_df)
 }
 
 
 
-standardize_state_names_in_df = function(target_names_df, origin_names_df, target_names_col='admin_name', origin_names_col='admin_name'){
+standardize_state_names_in_df = function(target_names_df, origin_names_df, target_names_col='State', origin_names_col='State'){
   #' given a dataframe with a column containing admin names, update the admin names to match the standardized naming conventions
   #' @param target_names_df dataframe containing a column with the admin names that should be used as the standard
   #' @param origin_names_df dataframe containing a column with admin names that user would like to update to the standard
@@ -149,7 +175,6 @@ standardize_state_names_in_df = function(target_names_df, origin_names_df, targe
   if(any(duplicate_names_state %in% toupper(origin_names_df[[origin_names_col]]))){
     stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
   } else{
-    
     target_names_df$matched_name = sapply(target_names_df[[target_names_col]], create_reference_name_match)
     origin_names_df$matched_name = sapply(origin_names_df[[origin_names_col]], create_reference_name_match)
     
@@ -173,8 +198,8 @@ standardize_state_names_in_df = function(target_names_df, origin_names_df, targe
     }
     
     # add the updated admin names to the dataframe, under the original admin column name
-    target_names_df =  target_names_df[,c('matched_name', target_names_col)]
-    updated_names_df = merge(origin_names_df, target_names_df, all.x=TRUE, by='matched_name')
+    target_names_df =  distinct(target_names_df[,c('matched_name', target_names_col)])
+    updated_names_df = merge(origin_names_df, target_names_df, all.x=TRUE, by='matched_name') # only include States in the origin df (i.e., don't include empty placeholders if they weren't in the original)
     colnames(updated_names_df)[colnames(updated_names_df)==target_names_col] = origin_names_col
     
     if(was_data_table) updated_names_df = as.data.table(updated_names_df)
@@ -218,3 +243,6 @@ standardize_admin_names_in_vector = function(target_names, origin_names){
     }
   }
 }
+
+
+
