@@ -1746,7 +1746,7 @@ plot_burden_maps = function(sim_future_output_dir, pop_filepath, district_subset
                             barplot_start_year, barplot_end_year,
                             pyr, chw_cov,
                             scenario_names, experiment_names, admin_shapefile_filepath, shapefile_admin_colname='NOMDEP', LLIN2y_flag=FALSE,
-                            overwrite_files=FALSE){
+                            filename_sufffix='', overwrite_files=FALSE){
 
 
   admin_pop = read.csv(pop_filepath)
@@ -1797,22 +1797,23 @@ plot_burden_maps = function(sim_future_output_dir, pop_filepath, district_subset
     llin2y_string = ''
   }
   num_colors = 40
-  colorscale = colorRampPalette(brewer.pal(9, 'YlGnBu'))(num_colors)
-
+  # colorscale = colorRampPalette(brewer.pal(9, 'YlGnBu'))(num_colors)
+  colorscale = colorRampPalette(brewer.pal(9, 'YlOrRd'))(num_colors)
+  
 
 
   # iterate through burden metrics, creating plots for each
   for(cc in 1:length(burden_colnames_for_map)){
 
-    if(save_plots) png(paste0(sim_future_output_dir, '/_plots/map_', burden_colnames_for_map[cc], '_', pyr, '_', chw_cov, 'CHW_', district_subset, llin2y_string, '.png'), res=600, width=(num_scenarios*3+2)*3/4, height=3, units='in')
+    if(save_plots) png(paste0(sim_future_output_dir, '/_plots/map_', burden_colnames_for_map[cc], '_', pyr, '_', chw_cov, 'CHW_', district_subset, llin2y_string, filename_sufffix, '.png'), res=600, width=(num_scenarios*3+2)*3/4, height=3, units='in')
     par(mar=c(0,1,2,0))
     # set layout for panel of maps
     layout_matrix = matrix(rep(c(rep(1:num_scenarios, each=3),rep((num_scenarios+1),2)),2), nrow=2, byrow=TRUE)
     layout(mat = layout_matrix)
 
     cur_colname = burden_colnames_for_map[cc]
-    min_value = min(burden_df_all[[cur_colname]], na.rm=TRUE)
-    max_value = max(burden_df_all[[cur_colname]], na.rm=TRUE)
+    min_value = min(min(burden_df_all[[cur_colname]], na.rm=TRUE), 0)
+    max_value = max(max(burden_df_all[[cur_colname]], na.rm=TRUE), 0.65)
 
     # iterate through scenarios
     for(ee in 1:num_scenarios){
