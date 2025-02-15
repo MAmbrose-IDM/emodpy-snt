@@ -729,7 +729,7 @@ def add_epi_rtss(campaign, rtss_df):
                                   "Delay_Period_Gaussian_Std_Dev": std}
         else:  # no delay
             delay_distribution = {"Delay_Period_Distribution": "CONSTANT_DISTRIBUTION",
-                                  "Delay_Period_Gaussian_Mean": tp_time_trigger}
+                                  "Delay_Period_Constant": tp_time_trigger}
 
         # triggered_campaign_delay_event only has option for constant delay, but we need different
         # distributions, so we're manually creating a delayed intervention that broadcasts an event
