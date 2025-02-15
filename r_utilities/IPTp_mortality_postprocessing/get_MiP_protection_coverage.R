@@ -484,6 +484,9 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
       iptp_dose_number = iptp_dose_number[,-1]
     }
   }
+  write.csv(iptp_coverage_df, gsub('estimated_past_IPTp_each_DS', paste0('sim_assumptions/IPTp_', coverage_string, '_',first_year, '_', last_year), iptp_estimates_filename))
+  write.csv(iptp_dose_number, gsub('estimated_past_IPTp_each_DS', paste0('sim_assumptions/IPTp_dose_', coverage_string, '_',first_year, '_', last_year), iptp_estimates_filename))
+  
   return(list(iptp_coverage_df, iptp_dose_number, admin_names))
 }
 
