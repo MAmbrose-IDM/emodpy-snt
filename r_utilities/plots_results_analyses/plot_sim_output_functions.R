@@ -914,7 +914,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
     }
     if(separate_plots_flag){
       separate_plot = gg_list[[bb]] + theme(legend.position='none', text=element_text(size =separate_plot_text_size))
-      ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_', relative_string, burden_metric_name,'_',district_subset,'.png'), separate_plot, dpi=600, width=4, height=3, units='in')
+      ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_', relative_string, burden_metric_name,'_',district_subset,'.png'), separate_plot, dpi=600, width=4, height=3, units='in')  # width=4*0.9, height=3*0.7, # width=4*0.7, height=3*1.2,
     }
   }
   # gg_list = append(list(ggpubr::as_ggplot(ggpubr::get_legend(gg_list[[1]])), (ggplot() + theme_void())), gg_list)

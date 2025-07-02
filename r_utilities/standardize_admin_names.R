@@ -78,6 +78,34 @@ create_reference_name_match = function(lga_name){
                       'UMU-NEOCHI' = 'UMU-NNEOCHI',
                       'IBADAN-NORTH-EAST' = 'IBADAN-CENTRAL-(IBADAN-NORTH-EAST)',
                       'NAFADA' = 'NAFADA-(BAJOGA)',
+                      'ISUIKWUATO' = 'ISUIKWATO',
+                      'OBI-NWGA' = 'OBI-NWA',
+                      'UMUNNEOCHI' = 'UMU-NNEOCHI',
+                      'YENAGOA' = 'YENEGOA',
+                      'OTUKPO' = 'OTURKPO',
+                      'BEKWARRA' = 'BEKWARA',
+                      'EFON' = 'EFON-ALAYEE',
+                      'AIYEKIRE-(GBONYIN)' = 'AIYEKIRE-(GBOYIN)',
+                      'IDO-OSI' = 'IDOSI-OSI',
+                      'ABUJA-MUNICIPAL-AREA-COUNCIL' = 'ABUJA-MUNICIPAL',
+                      'EZINIHITTE-MBAISE' = 'EZINIHITTE',
+                      'ONUIMO' = 'UNUIMO',
+                      'AREWA' = 'AREWA-DANDI',
+                      'DANKO-WASAGU' = 'WASAGU-DANKO',
+                      'OGORI-MAGONGO' = 'OGORI-MANGONGO',
+                      'OLAMABORO' = 'OLAMABOLO',
+                      'SAGAMU' = 'SHAGAMU',
+                      'AYEDAADE' = 'AIYEDADE',
+                      'AYEDIRE' = 'AIYEDIRE',
+                      'ILESA-EAST' = 'ILESHA-EAST',
+                      'ILESA-WEST' = 'ILESHA-WEST',
+                      'ATISBO' = 'ATIGBO',
+                      'OBIO-AKPOR' = 'OBIA-AKPOR',
+                      'KARIM-LAMIDO' = 'KARIN-LAMIDO',
+                      'BUSARI' = 'BURSARI',
+                      # '' = '',
+                      # '' = '',
+                      # '' = '',
                       
                       # BDI
                       'BUJUMBURA-CENTRE' = 'ZONE-CENTRE',
@@ -100,6 +128,25 @@ create_reference_name_match = function(lga_name){
   }
   return(lga_name)
 }
+
+
+add_number_identification = function(target_names_df, origin_names_df, additional_id_col='State', possible_suffixes=c(1,2,3)){
+  if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(target_names_df))){
+    matching_pattern = paste0("(", paste(possible_suffixes, collapse = "|"), ")$")
+    
+    # add column to target_names dataframe with the matching name without the suffix, then merge the dataframes
+    target_names_df$name_no_suffix = sub(matching_pattern, "", target_names_df$matched_name)
+    binding_df = target_names_df %>% rename(name_with_suffix = matched_name, matched_name = name_no_suffix) %>%
+      dplyr::select(name_with_suffix, matched_name, !!sym(additional_id_col))
+    origin_names_df = merge(origin_names_df, binding_df, all.x=TRUE)
+    origin_names_df$matched_name[!is.na(origin_names_df$name_with_suffix)] = origin_names_df$name_with_suffix[!is.na(origin_names_df$name_with_suffix)]
+    
+  } else warning('The column for additional identification was not found in one of the dataframes')
+  return(origin_names_df)
+}
+
+
+
 
 standardize_admin_names_in_df = function(target_names_df, origin_names_df, target_names_col='admin_name', origin_names_col='admin_name', unique_entries_flag=FALSE, additional_id_col='State', possible_suffixes=c(1,2,3)){
   #' given a dataframe with a column containing admin names, update the admin names to match the standardized naming conventions
@@ -126,14 +173,20 @@ standardize_admin_names_in_df = function(target_names_df, origin_names_df, targe
         } else stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
       }
     } 
-  } else if(any(duplicate_names %in% toupper(origin_names_df[[origin_names_col]]))){
-      stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
-  }
+  } #else if(any(duplicate_names %in% toupper(origin_names_df[[origin_names_col]]))){
+    #  stop('PROBLEM ENCOUNTERED: Some of the input admin names are not unique identifiers of the admin. Need to add numeric value to distintuish, determined by admin region, following the system from the standardization base file.')
+  #}
 
   target_names_df$matched_name = sapply(target_names_df[[target_names_col]], create_reference_name_match)
   origin_names_df$matched_name = sapply(origin_names_df[[origin_names_col]], create_reference_name_match)
   
-  # check whether all names from the origin source are now matched to one of the target names
+  # check whether any of the un-matched names are duplicates across states if not all names have been matched yet
+  if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
+    if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(target_names_df))){
+      origin_names_df = add_number_identification(target_names_df=target_names_df, origin_names_df=origin_names_df, additional_id_col=additional_id_col, possible_suffixes=possible_suffixes)
+    }
+  }
+  # check whether all names are now matched
   if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
     warning('Some of the source admin names could not be matched with a target admin name')
     View(distinct(origin_names_df[which(!(origin_names_df$matched_name %in% target_names_df$matched_name)), c('matched_name', 'State')]))

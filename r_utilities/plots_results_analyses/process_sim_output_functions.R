@@ -462,6 +462,132 @@ get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, 
 
 
 
+# total over a time period for each admin
+get_cumulative_burden_by_admin = function(sim_output_filepath, experiment_name, start_year, end_year, admin_pop, LLIN2y_flag=FALSE, overwrite_files=FALSE, mean_across_seeds=FALSE){
+  #'  @description get cumulative U5 and all-age burden over specified years in each state (for all malaria metrics, separate values for each seed)
+  #'  @return save and return data frame where each row is a seed x state and each column is the total over all included years of different burden metrics:
+  #'      sum of:
+  #'         - clinical cases (all ages)
+  #'         - clinical cases (U5)
+  #'         - deaths (all ages) - upper, lower, average parameter estimates
+  #'         - deaths (U5) - upper, lower, average parameter estimates
+  #'         - mLBW
+  #'         - malaria-attributable stillbirths
+  #'       average of annual (population weighted):
+  #'         - PfPR (all ages)
+  #'         - PfPR (U5)
+  #'         - incidence (all ages)
+  #'         - incidence (U5)
+  #'         - death rate (all ages)
+  #'         - death rate (U5)
+  #'         - mLBW
+  #'         - stillbirths
+  
+  
+  output_filename = paste0(sim_output_filepath, '/', experiment_name, '/cumulativeBurden_', start_year, '_', end_year, '_byAdmin.csv')
+  if(file.exists(output_filename) & !overwrite_files){
+    df_aggregated = read.csv(output_filename)
+  }else{
+    cur_file = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+    # filter to relevant years
+    cur_file = cur_file[cur_file$year <= end_year,]
+    cur_file = cur_file[cur_file$year >= start_year,]
+    # merge population sizes in each admin
+    df = merge(cur_file, admin_pop, by='admin_name')
+    
+    # all age metrics - rescaled to full population
+    df$positives_all_ages = df$PfPR_MiP_adjusted * df$pop_size
+    df$cases_all_ages = df$New_Clinical_Cases * (df$pop_size / df$Statistical_Population)
+    df$severe_all_ages = df$severe_total * (df$pop_size / df$Statistical_Population)
+    df$direct_deaths_1_all_ages = df$direct_mortality_nonMiP_1 * df$pop_size / df$Statistical_Population
+    df$direct_deaths_2_all_ages = df$direct_mortality_nonMiP_2 * df$pop_size / df$Statistical_Population
+    df$all_deaths_1_all_ages = df$total_mortality_1 * df$pop_size / df$Statistical_Population
+    df$all_deaths_2_all_ages = df$total_mortality_2 * df$pop_size / df$Statistical_Population
+    df$num_mLBW = df$mLBW_births * df$pop_size / df$Statistical_Population
+    df$num_mStillbirths = df$MiP_stillbirths * df$pop_size / df$Statistical_Population
+    # U5 metrics - rescaled to full population
+    df$pop_size_U5 = df$pop_size * (df$Pop_U5 / df$Statistical_Population)  # assumes fraction of individual U5 in simulation is same as fraction in full population
+    df$positives_U5 = df$PfPR_U5 * df$pop_size_U5
+    df$cases_U5 = df$New_clinical_cases_U5 * df$pop_size_U5 / df$Pop_U5
+    df$severe_U5 = df$Severe_cases_U5 * df$pop_size_U5 / df$Pop_U5
+    df$direct_deaths_1_U5 = df$direct_mortality_nonMiP_U5_1 * df$pop_size_U5 / df$Pop_U5
+    df$direct_deaths_2_U5 = df$direct_mortality_nonMiP_U5_2 * df$pop_size_U5 / df$Pop_U5
+    df$all_deaths_1_U5 = df$total_mortality_U5_1 * df$pop_size_U5 / df$Pop_U5
+    df$all_deaths_2_U5 = df$total_mortality_U5_2 * df$pop_size_U5 / df$Pop_U5
+    
+    df_aggregated = df %>% group_by(Run_Number, admin_name) %>%
+      dplyr::summarize(pop_all_sum = sum(pop_size),
+                       pop_U5_sum = sum(pop_size_U5),
+                       cases_all_sum = sum(cases_all_ages),
+                       cases_U5_sum = sum(cases_U5),
+                       severe_all_sum = sum(severe_all_ages),
+                       severe_U5_sum = sum(severe_U5),
+                       positives_all_sum = sum(positives_all_ages),
+                       positives_U5_sum = sum(positives_U5),
+                       direct_deaths_1_all_sum = sum(direct_deaths_1_all_ages),
+                       direct_deaths_2_all_sum = sum(direct_deaths_2_all_ages),
+                       all_deaths_1_all_sum = sum(all_deaths_1_all_ages),
+                       all_deaths_2_all_sum = sum(all_deaths_2_all_ages),
+                       direct_deaths_1_U5_sum = sum(direct_deaths_1_U5),
+                       direct_deaths_2_U5_sum = sum(direct_deaths_2_U5),
+                       all_deaths_1_U5_sum = sum(all_deaths_1_U5),
+                       all_deaths_2_U5_sum = sum(all_deaths_2_U5),
+                       mLBW_sum = sum(num_mLBW),
+                       mStill_sum = sum(num_mStillbirths),
+                       num_values_grouped = n())
+    
+    
+    # clinical incidence (annual): sum of number of cases over all months / (pop size) / (number of years) * 1000
+    #     = sum of number of cases over all months / (sum of pop size over all months /  number of months) / (number of months / 12)  * 1000
+    #     = sum of number of cases over all months / (sum of pop size over all months / 12)  * 1000
+    df_aggregated$incidence_all = (df_aggregated$cases_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$incidence_U5 = (df_aggregated$cases_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$severe_incidence_all = (df_aggregated$severe_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$severe_incidence_U5 = (df_aggregated$severe_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$direct_death_rate_1_all = (df_aggregated$direct_deaths_1_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$direct_death_rate_2_all = (df_aggregated$direct_deaths_2_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$direct_death_rate_mean_all = (df_aggregated$direct_death_rate_1_all + df_aggregated$direct_death_rate_2_all) / 2
+    df_aggregated$all_death_rate_1_all = (df_aggregated$all_deaths_1_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$all_death_rate_2_all = (df_aggregated$all_deaths_2_all_sum / (df_aggregated$pop_all_sum / 12) * 1000)
+    df_aggregated$all_death_rate_mean_all = (df_aggregated$all_death_rate_1_all + df_aggregated$all_death_rate_2_all) / 2
+    df_aggregated$direct_death_rate_1_U5 = (df_aggregated$direct_deaths_1_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$direct_death_rate_2_U5 = (df_aggregated$direct_deaths_2_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$direct_death_rate_mean_U5 = (df_aggregated$direct_death_rate_1_U5 + df_aggregated$direct_death_rate_2_U5) / 2
+    df_aggregated$all_death_rate_1_U5 = (df_aggregated$all_deaths_1_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$all_death_rate_2_U5 = (df_aggregated$all_deaths_2_U5_sum / (df_aggregated$pop_U5_sum / 12) * 1000)
+    df_aggregated$all_death_rate_mean_U5 = (df_aggregated$all_death_rate_1_U5 + df_aggregated$all_death_rate_2_U5) / 2
+    df_aggregated$average_PfPR_all = (df_aggregated$positives_all_sum  / (df_aggregated$pop_all_sum))
+    df_aggregated$average_PfPR_U5 = (df_aggregated$positives_U5_sum  / (df_aggregated$pop_U5_sum))
+    df_aggregated$annual_num_mLBW = (df_aggregated$mLBW_sum / (end_year - start_year + 1))
+    df_aggregated$annual_num_mStill = (df_aggregated$mStill_sum / (end_year - start_year + 1))
+    
+    
+    df_aggregated = df_aggregated[,which(colnames(df_aggregated) %in% c('admin_name','Run_Number','cases_all_sum','cases_U5_sum','severe_all_sum','severe_U5_sum', 
+                                                                        'mLBW_sum', 'mStill_sum', 'incidence_all', 'incidence_U5', 'severe_incidence_all', 'severe_incidence_U5', 'average_PfPR_all','average_PfPR_U5',  'annual_num_mLBW', 'annual_num_mStill', 
+                                                                        'direct_deaths_1_all_sum', 'direct_deaths_2_all_sum', 'direct_deaths_1_U5_sum', 'direct_deaths_2_U5_sum',
+                                                                        'all_deaths_1_all_sum', 'all_deaths_2_all_sum', 'all_deaths_1_U5_sum', 'all_deaths_2_U5_sum', 
+                                                                        'direct_death_rate_1_all', 'direct_death_rate_2_all',  'all_death_rate_1_all', 'all_death_rate_2_all', 
+                                                                        'direct_death_rate_1_U5', 'direct_death_rate_2_U5', 'all_death_rate_1_U5', 'all_death_rate_2_U5', 
+                                                                        'direct_death_rate_mean_all', 'direct_death_rate_mean_U5', 'all_death_rate_mean_all', 'all_death_rate_mean_U5'))]
+    
+    if(mean_across_seeds){
+      df_aggregated = df_aggregated %>% group_by(admin_name) %>%
+        summarise_all(mean, na.rm=TRUE)
+    }
+    write.csv(df_aggregated, output_filename, row.names=FALSE)
+  }
+  if(mean_across_seeds){
+    df_aggregated = df_aggregated %>% group_by(admin_name) %>%
+      summarise_all(mean, na.rm=TRUE)
+  }
+  return(df_aggregated)
+}
+
+
+
+
+
+
 
 
 

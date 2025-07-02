@@ -53,9 +53,9 @@ def add_hs_from_file(campaign, row):
 
     add_treatment_seeking(campaign, start_day=start_day,
                           targets=[{'trigger': 'NewClinicalCase', 'coverage': hs_child, 'agemin': 0, 'agemax': 5,
-                                    'rate': 0.3},
+                                    'rate': 0.33},
                                    {'trigger': 'NewClinicalCase', 'coverage': hs_adult, 'agemin': 5, 'agemax': 100,
-                                    'rate': 0.3},
+                                    'rate': 0.33},
                                    ],
                           drug=['Artemether', 'Lumefantrine'], duration=row['duration'])
     add_treatment_seeking(campaign, start_day=start_day,
