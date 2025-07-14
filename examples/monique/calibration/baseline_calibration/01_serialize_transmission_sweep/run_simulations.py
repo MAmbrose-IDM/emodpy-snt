@@ -98,10 +98,10 @@ if __name__ == "__main__":
     - show_warnings_once=False: show api warnings for all simulations
     - show_warnings_once=None:  not show api warnings
     """
-    platform = Platform('CALCULON', node_group='emod_abcd')
+    platform = Platform('CALCULON')#, node_group='emod_abcd')
     # platform = Platform('IDMCLOUD', node_group='emod_abcd')
 
-    # If you don't have Eradication, un-comment out the following to download Eradication
+    # # If you don't have Eradication, un-comment out the following to download Eradication
     # import emod_malaria.bootstrap as dtk
     # import pathlib
     # import os
