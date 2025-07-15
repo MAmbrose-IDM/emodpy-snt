@@ -1,6 +1,7 @@
 # create_sim_input_cm.R
 
 library(reshape2)
+library(dplyr)
 
 
 ###############################
@@ -54,9 +55,13 @@ create_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm', sim_start_y
   # add in the day of the simulation each intervention should start and the duration
   coverage_df$simday = (coverage_df$year - sim_start_year) * 365
   coverage_df$duration = 365  # duration in days
-  
+
+  # re-order rows for easier review
+  coverage_df = coverage_df %>%
+    arrange(admin_name, year)
+
   if(!dir.exists(paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent'))) dir.create(paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent'))
-  write.csv(coverage_df, paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent/cm_2010', cm_suffix,'_toPresent.csv'))
+  write.csv(coverage_df, paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent/cm_2010', cm_suffix,'_toPresent.csv'), row.names=FALSE)
 }
 
 
