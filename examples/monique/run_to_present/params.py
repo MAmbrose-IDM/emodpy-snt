@@ -2,7 +2,7 @@ import os
 import manifest
 import pandas as pd
 
-num_seeds = 50
+num_seeds = 3
 start_year = 2010
 years = 12  # beginning of 2010 to beginning of 2010+ year
 serialize = True
@@ -16,7 +16,7 @@ demographics_file = os.path.join('demographics_and_climate', '_entire_country',
                                  f'demographics_each_admin_{population_size}.json')
 
 use_arch_burnin = True
-burnin_id = 'cab2ccbc-f70a-ee11-aa07-b88303911bc1'  # <- on IDMCloud  # generated from serialize_transmission_sweep (1960-2010)
+burnin_id = 'c4cf2c26-0561-f011-aa23-b88303911bc1' # <- Calculon  #     'eb89ea6e-2f53-ee11-aa0a-b88303911bc1'  # 'cab2ccbc-f70a-ee11-aa07-b88303911bc1'  # <- on IDMCloud  # generated from serialize_transmission_sweep (1960-2010)
 
 scenario_fname = os.path.join(manifest.project_path, 'simulation_inputs', '_intervention_file_references',
                               'Interventions_to_present.csv')

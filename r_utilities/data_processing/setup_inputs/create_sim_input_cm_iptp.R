@@ -29,7 +29,7 @@ library(reshape2)
 # maximum_coverage = 0.9
 # sim_start_year = 2010
 
-create_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm', sim_start_year=2010, adult_multiplier=0.5, severe_multiplier=2, severe_minimum=0.6, maximum_coverage=0.9){
+create_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm', sim_start_year=2010, adult_multiplier=0.5, severe_multiplier=2, severe_minimum=0.6, maximum_coverage=0.9, act_adherence_effective_multiplier=1, cm_suffix=''){
   # read in coverages for U5
   sample_df = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_sampled_params_',cm_variable_name,'.csv'))[,-1]
   # convert from wide to long format to make each seed its own row
@@ -41,18 +41,22 @@ create_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm', sim_start_y
   if(length(unique(coverage_df$seed))<=1){
     coverage_df = coverage_df[,-which(colnames(coverage_df)=='seed')]
   }
-
+  
   # add in coverage for adults
   coverage_df$adult_coverage = sapply((coverage_df$U5_coverage * adult_multiplier), min, maximum_coverage)
   # add severe disease coverage
   coverage_df$severe_coverage = sapply(sapply((coverage_df$U5_coverage * severe_multiplier), min, maximum_coverage), max, severe_minimum)
+  
+  # decrease the effective coverage to account for imperfect adherence to the full ACT regimine
+  coverage_df$adult_coverage = coverage_df$adult_coverage * act_adherence_effective_multiplier
+  coverage_df$U5_coverage = coverage_df$U5_coverage * act_adherence_effective_multiplier
   
   # add in the day of the simulation each intervention should start and the duration
   coverage_df$simday = (coverage_df$year - sim_start_year) * 365
   coverage_df$duration = 365  # duration in days
   
   if(!dir.exists(paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent'))) dir.create(paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent'))
-  write.csv(coverage_df, paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent/cm_2010_toPresent.csv'))
+  write.csv(coverage_df, paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent/cm_2010', cm_suffix,'_toPresent.csv'))
 }
 
 
