@@ -19,4 +19,5 @@ USER_PATH = None
 data_path, project_path = load_box_paths(user_path=USER_PATH, country_name='Example')
 input_dir = os.path.join(project_path, "simulation_inputs")
 
-sif_id = '../../../dtk_sif.id'
+# sif_id = '../../../dtk_sif.id'
+sif_id = os.path.join(ROOT_DIR, 'dtk_sif.id')
