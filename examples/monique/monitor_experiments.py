@@ -46,6 +46,10 @@ def check_experiment_and_trigger(exp_id, exp_type, exp_name):
             script_path = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_analysis.py')
             subprocess.run([sys.executable, script_path, '--exp-id', exp_id, '--type', exp_type, '--name', exp_name])
 
+            # if run ssmt, uncomment following 2 lines
+            # ssmt_script_path = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_ssmt.py')
+            # subprocess.run([sys.executable, ssmt_script_path, '--exp-id', exp_id, '--type', exp_type, '--name', exp_name])
+
             processed_experiments.add(exp_id)
 
     except Exception as e:
