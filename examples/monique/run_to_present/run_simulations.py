@@ -1,5 +1,9 @@
+from idmtools.core import ItemType
+from idmtools.entities import Suite
+
 import manifest
 import params
+import argparse
 from idmtools.core.platform_factory import Platform
 from idmtools.entities.experiment import Experiment
 from idmtools.entities.templated_simulation import TemplatedSimulations
@@ -30,7 +34,7 @@ def _pre_run(experiment: Experiment, **kwargs):
     initialize_plugins(**kwargs)
 
 
-def _post_run(experiment: Experiment, **kwargs):
+def _post_run(experiment, suite=None, **kwargs):
     """
     Add extra work after run experiment.
     Args:
@@ -39,10 +43,23 @@ def _post_run(experiment: Experiment, **kwargs):
     Return:
         None
     """
+    if suite:
+        print(f"SUITE_NAME: {suite.name}")
+        print(f"SUITE_ID: {suite.id}")
+        print(f"EXPERIMENT_NAME: {experiment.name}")
+        print(f"EXPERIMENT_ID: {experiment.id}")
+
+    else:
+        print(f"SUITE_NAME: None")
+        print(f"SUITE_ID: None")
+        print(f"EXPERIMENT_NAME: {experiment.name}")
+        print(f"EXPERIMENT_ID: {experiment.id}")
+
     if experiment.succeeded:
         with open("monique\\run_to_present\\experiment_id.txt", "w") as fd:
-            fd.write(experiment.uid.hex)
-    pass
+            fd.write(experiment.id)
+
+
 
 
 def _config_experiment(**kwargs):
@@ -80,13 +97,16 @@ def run_experiment(**kwargs):
     """
     # make sure pass platform through
     kwargs['platform'] = platform
-
+    suite_id = kwargs.pop('suite_id', None)
     _print_params()
 
     experiment = _config_experiment(**kwargs)
     _pre_run(experiment, **kwargs)
-    experiment.run(**kwargs)
-    _post_run(experiment, **kwargs)
+    if suite_id:
+        suite = platform.get_item(suite_id, ItemType.SUITE)
+        suite.add_experiment(experiment)
+    experiment.run(wait_until_done=False)
+    _post_run(experiment, suite=None, **kwargs)
 
 
 if __name__ == "__main__":
@@ -95,8 +115,15 @@ if __name__ == "__main__":
     - show_warnings_once=False: show api warnings for all simulations
     - show_warnings_once=None:  not show api warnings
     """
-    platform = Platform('CALCULON')#, node_group='emod_abcd')
-    # platform = Platform('IDMCLOUD', node_group='emod_abcd')
+    parser = argparse.ArgumentParser(description="Run experiment optionally using an existing suite_id")
+    parser.add_argument('--suite-id', type=str, help='Optional suite ID to reuse or track')
+    parser.add_argument('--no-warnings', action='store_true', help='Disable simulation API warnings')
+    args = parser.parse_args()
+
+    platform = Platform('CALCULON')
+
+    # Determine warning level
+    show_warnings = not args.no_warnings
 
     # If you don't have Eradication, un-comment out the following to download Eradication
     # import emod_malaria.bootstrap as dtk
@@ -105,4 +132,5 @@ if __name__ == "__main__":
     # dtk.setup(pathlib.Path(manifest.eradication_path).parent)
     # os.chdir(os.path.dirname(__file__))
     # print("...done.")
-    run_experiment(show_warnings_once=True)
+    #run_experiment(show_warnings_once=True)
+    run_experiment(show_warnings_once=show_warnings, suite_id=args.suite_id)
