@@ -32,7 +32,7 @@ if not match.empty:
     suite_id = match['suite_id'].iloc[0]
     suite = platform.get_item(suite_id, ItemType.SUITE)
     suite_name = suite.name
-    print(f"✅ Reusing suite from file: {suite_name} ({suite_id})")
+    print(f"Reusing suite from file: {suite_name} ({suite_id})")
 
 else:
     # No matching suite found — create new or reuse first suite in file
@@ -40,13 +40,13 @@ else:
         suite = Suite(name='SNT Suite')
         suite.update_tags({'name': f'suite_{experiment_type}'})
         platform.create_items([suite])
-        print(f"🆕 Created new suite: {suite.name} ({suite.id})")
+        print(f"Created new suite: {suite.name} ({suite.id})")
     else:
         # Fall back to reusing the first suite in the file
         suite_id = df_suite['suite_id'].iloc[0]
         suite = platform.get_item(suite_id, ItemType.SUITE)
         suite.update_tags({'name': f'suite_{experiment_type}'})
-        print(f"🔁 Reusing fallback suite from file: {suite.name} ({suite.id})")
+        print(f"Reusing fallback suite from file: {suite.name} ({suite.id})")
 
     suite_id = str(suite.id)
     suite_name = suite.name
