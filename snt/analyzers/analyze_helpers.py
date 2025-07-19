@@ -198,7 +198,8 @@ class monthlyTreatedCasesAnalyzer(IAnalyzer):
                                                           )
         self.sweep_variables = sweep_variables or ["admin_name", "Run_Number"]
         if channels is None:
-            self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment']
+            #self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment']
+            self.channels = ['Received_Vaccine', 'Received_NMF_Treatment']  # sharon note: no 'Received_Treatment',
         else:
             self.channels = channels
         self.inset_channels = ['Statistical Population', 'New Clinical Cases', 'New Severe Cases', 'PfHRP2 Prevalence']

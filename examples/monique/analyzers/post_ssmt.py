@@ -74,7 +74,7 @@ if __name__ == "__main__":
             analyzers = [
                 monthlyU1PfPRAnalyzer,
                 monthlyU5PfPRAnalyzer,
-                monthlyTreatedCasesAnalyzer,
+                monthlyTreatedCasesAnalyzer,  # sharon note: no ['Received_Treatment', 'Received_Severe_Treatment'], change to 'Received_Vaccine'
                 monthlySevereTreatedByAgeAnalyzer,
                 monthlyUsageLLIN,
                 monthlyEventAnalyzer,
@@ -102,9 +102,9 @@ if __name__ == "__main__":
                 f"{expt_name}/U5_PfPR_ClinicalIncidence.csv",
                 f"{expt_name}/All_Age_monthly_Cases.csv",
                 f"{expt_name}/Treated_Severe_Monthly_Cases_By_Age.csv",
+                f"{expt_name}/MonthlyUsageLLIN.csv",
                 f"{expt_name}/U1_PfPR_ClinicalIncidence_severeTreatment.csv",
                 f"{expt_name}/U5_PfPR_ClinicalIncidence_severeTreatment.csv",
-                f"{expt_name}/MonthlyUsageLLIN.csv",
                 f"{expt_name}/monthly_Event_Count.csv",
                 f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup.csv",
                 f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup_withU5.csv",
@@ -114,8 +114,8 @@ if __name__ == "__main__":
         else:
             analyzers = [
                 monthlyU5PfPRAnalyzer,
-                #monthlyTreatedCasesAnalyzer,  # sharon note: no Received_Treatment
-                #monthlySevereTreatedByAgeAnalyzer,
+                # monthlyTreatedCasesAnalyzer,  # sharon note: no Received_Treatment
+                # monthlySevereTreatedByAgeAnalyzer,
                 # monthlyUsageLLIN,   # sharon note: no Bednet_Using
                 monthlyEventAnalyzer,
                 MonthlyNewInfectionsAnalyzer,

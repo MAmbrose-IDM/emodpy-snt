@@ -74,7 +74,7 @@ if __name__ == "__main__":
                 monthlyU1PfPRAnalyzer(**args_each),
                 monthlyU5PfPRAnalyzer(**args_each),
                 monthlyTreatedCasesAnalyzer(**args_treat_case),   # sharon note: no ['Received_Treatment', 'Received_Severe_Treatment'], change to 'Received_Vaccine'
-                monthlySevereTreatedByAgeAnalyzer(**args_each),  # analyzer warning
+                monthlySevereTreatedByAgeAnalyzer(**args_each),
                 monthlyUsageLLIN(**args_each),
                 monthlyEventAnalyzer(**args_each),
                 MonthlyNewInfectionsAnalyzer(**args_new_infect),
@@ -84,9 +84,9 @@ if __name__ == "__main__":
         else:
             analyzers = [
                 monthlyU5PfPRAnalyzer(**args_each),
-                #monthlyTreatedCasesAnalyzer(**args_treat_case),
-                #monthlySevereTreatedByAgeAnalyzer(**args_no_u1),
-                #monthlyUsageLLIN(**args_each),  # sharon note: no Bednet_Using
+                # monthlyTreatedCasesAnalyzer(**args_treat_case),
+                # monthlySevereTreatedByAgeAnalyzer(**args_no_u1),
+                # monthlyUsageLLIN(**args_each),  # sharon note: no Bednet_Using
                 monthlyEventAnalyzer(**args_each),
                 MonthlyNewInfectionsAnalyzer(**args_new_infect),
                 MonthlyNewInfectionsAnalyzer_withU5(**args_new_infect_withU5)
