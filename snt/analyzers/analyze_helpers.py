@@ -52,8 +52,8 @@ class monthlyU1PfPRAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, 'U1_PfPR_ClinicalIncidence.csv')), index=False)
@@ -106,8 +106,8 @@ class monthlyU5PfPRAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, 'U5_PfPR_ClinicalIncidence.csv')), index=False)
@@ -174,8 +174,8 @@ class MonthlyPfPRAnalyzerByAge(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, 'Agebins_PfPR_ClinicalIncidenceAnemia.csv')),
@@ -251,6 +251,8 @@ class monthlyTreatedCasesAnalyzer(IAnalyzer):
         pdf = adf.groupby(['admin_name', 'date', 'Run_Number'])[mean_channels].agg(np.mean).reset_index()
 
         adf = pd.merge(left=pdf, right=df, on=['admin_name', 'date', 'Run_Number'])
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
         adf.to_csv(os.path.join(self.working_dir, self.expt_name, 'All_Age_monthly_Cases.csv'), index=False)
 
 
@@ -298,8 +300,8 @@ class monthlyPrevalenceAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
@@ -370,8 +372,8 @@ class monthlyEventAnalyzerITN(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True, )
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
@@ -436,8 +438,8 @@ class monthlyEventAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True, )
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
@@ -478,11 +480,16 @@ class monthlySevereTreatedByAgeAnalyzer(IAnalyzer):
 
         simdata = pd.DataFrame()
         if len(output_data) > 0:  # there are events of this type
-            output_data['Day'] = output_data['Time'] % 365
-            output_data['month'] = output_data['Day'].apply(lambda x: self.monthparser((x + 1) % 365))
-            output_data['year'] = output_data['Time'].apply(lambda x: int(x / 365) + self.start_year)
-            output_data['age in years'] = output_data['Age'] / 365
+            # output_data['Day'] = output_data['Time'] % 365
+            # output_data['month'] = output_data['Day'].apply(lambda x: self.monthparser((x + 1) % 365))
+            # output_data['year'] = output_data['Time'].apply(lambda x: int(x / 365) + self.start_year)
+            # output_data['age in years'] = output_data['Age'] / 365
+            output_data = output_data.copy()  # ensure it's not a view
 
+            output_data.loc[:, 'Day'] = output_data['Time'] % 365
+            output_data.loc[:, 'month'] = output_data['Day'].apply(lambda x: self.monthparser((x + 1) % 365))
+            output_data.loc[:, 'year'] = output_data['Time'] // 365 + self.start_year
+            output_data.loc[:, 'age in years'] = output_data['Age'] / 365
             for agemax in self.agebins:
                 if agemax < 200:
                     agelabel = 'U%d' % agemax
@@ -518,8 +525,8 @@ class monthlySevereTreatedByAgeAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf = adf.fillna(0)
@@ -693,8 +700,8 @@ class MonthlyNewInfectionsAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, self.output_filename)), index=False)
@@ -821,8 +828,8 @@ class MonthlyNewInfectionsAnalyzer_withU5(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, self.output_filename)), index=False)
@@ -912,8 +919,8 @@ class MonthlyNewInfectionsAnalyzerByAge(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, self.output_filename)), index=False)
@@ -975,8 +982,8 @@ class monthlyUsageLLIN(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)

@@ -1,3 +1,6 @@
+# To debug this script locally, run post_analysis.py --exp-id <exp_id> --type <type> --name <name>
+# 1) python post_analysis.py --exp-id 0c947c48-1764-f011-9f17-b88303912b51 --type "to_present" --name "example_to_present"
+# 2) python post_analysis.py --exp-id c3b0861e-1764-f011-9f17-b88303912b51 --type "future_projections" --name "example_projection_v3"
 import argparse
 from idmtools.analysis.analyze_manager import AnalyzeManager
 from idmtools.core import ItemType
@@ -68,25 +71,25 @@ if __name__ == "__main__":
 
         if end_year > 2022:
             analyzers = [
-                # monthlyU1PfPRAnalyzer(**args_each),
-                # monthlyU5PfPRAnalyzer(**args_each),
-                # monthlyTreatedCasesAnalyzer(**args_treat_case),
-                # monthlySevereTreatedByAgeAnalyzer(**args_each),
-                # monthlyUsageLLIN(**args_each),
-                # monthlyEventAnalyzer(**args_each),
-                # MonthlyNewInfectionsAnalyzer(**args_new_infect),
+                monthlyU1PfPRAnalyzer(**args_each),
+                monthlyU5PfPRAnalyzer(**args_each),
+                monthlyTreatedCasesAnalyzer(**args_treat_case),   # sharon note: no ['Received_Treatment', 'Received_Severe_Treatment'], change to 'Received_Vaccine'
+                monthlySevereTreatedByAgeAnalyzer(**args_each),  # analyzer warning
+                monthlyUsageLLIN(**args_each),
+                monthlyEventAnalyzer(**args_each),
+                MonthlyNewInfectionsAnalyzer(**args_new_infect),
                 MonthlyNewInfectionsAnalyzer_withU5(**args_new_infect_withU5),
                 VectorNumbersAnalyzer(**args_each)
             ]
         else:
             analyzers = [
-                #monthlyU5PfPRAnalyzer(**args_each),
-                monthlyTreatedCasesAnalyzer(**args_treat_case),
-                # monthlySevereTreatedByAgeAnalyzer(**args_no_u1),
-                # monthlyUsageLLIN(**args_each),
-                # monthlyEventAnalyzer(**args_each),
-                # MonthlyNewInfectionsAnalyzer(**args_new_infect),
-                # MonthlyNewInfectionsAnalyzer_withU5(**args_new_infect_withU5)
+                monthlyU5PfPRAnalyzer(**args_each),
+                #monthlyTreatedCasesAnalyzer(**args_treat_case),
+                #monthlySevereTreatedByAgeAnalyzer(**args_no_u1),
+                #monthlyUsageLLIN(**args_each),  # sharon note: no Bednet_Using
+                monthlyEventAnalyzer(**args_each),
+                MonthlyNewInfectionsAnalyzer(**args_new_infect),
+                MonthlyNewInfectionsAnalyzer_withU5(**args_new_infect_withU5)
             ]
 
         manager = AnalyzeManager(

@@ -1,5 +1,7 @@
+# To debug this script locally, run python post_ssmt.py --exp-id <exp_id> --type <type> --name <name>
+# 1) python post_ssmt.py --exp-id 0c947c48-1764-f011-9f17-b88303912b51 --type "to_present" --name "example_to_present"
+# 2) python post_ssmt.py --exp-id c3b0861e-1764-f011-9f17-b88303912b51 --type "future_projections" --name "example_projection_v3"
 import argparse
-from idmtools.analysis.analyze_manager import AnalyzeManager
 from idmtools.analysis.platform_anaylsis import PlatformAnalysis
 from idmtools.core import ItemType
 
@@ -33,6 +35,8 @@ if __name__ == "__main__":
 
     itn_comparison_flag = False
     climate_only_flag = False
+    wi_name_base = "ssmt_analyzer_"
+    wi_name = '%s_%s' % (wi_name_base, expt_name)
 
     with Platform("CALCULON") as platform:
         print(f"\n>>> Running analysis for {expt_name} ({exp_id}) [{exp_type}]")
@@ -68,43 +72,80 @@ if __name__ == "__main__":
             args_treat_case = args_each
         if end_year > 2022:
             analyzers = [
+                monthlyU1PfPRAnalyzer,
+                monthlyU5PfPRAnalyzer,
+                monthlyTreatedCasesAnalyzer,
+                monthlySevereTreatedByAgeAnalyzer,
+                monthlyUsageLLIN,
+                monthlyEventAnalyzer,
+                MonthlyNewInfectionsAnalyzer,
                 MonthlyNewInfectionsAnalyzer_withU5,
                 VectorNumbersAnalyzer
             ]
-        else:
-            analyzers = [
-                monthlyTreatedCasesAnalyzer,
-            ]
-        wi_name_base = "ssmt_analyzer_"
-        wi_name = '%s_%s' % (wi_name_base, expt_name)
-        if end_year > 2022:
             analysis = PlatformAnalysis(platform=platform,
                                         experiment_ids=[exp_id],
                                         analyzers=analyzers,
                                         analyzers_args=[
-                                            # args_each,
-                                            # args_each,
-                                            # args_treat_case,
-                                            # args_each,
-                                            # args_each,
-                                            # args_each,
-                                            # args_new_infect,
+                                            args_each,
+                                            args_each,
+                                            args_treat_case,
+                                            args_each,
+                                            args_each,
+                                            args_each,
+                                            args_new_infect,
                                             args_new_infect_withU5,
                                             args_each
                                         ],
                                         analysis_name=wi_name)
+            download_filenames = [
+                f"{expt_name}/U1_PfPR_ClinicalIncidence.csv",
+                f"{expt_name}/U5_PfPR_ClinicalIncidence.csv",
+                f"{expt_name}/All_Age_monthly_Cases.csv",
+                f"{expt_name}/Treated_Severe_Monthly_Cases_By_Age.csv",
+                f"{expt_name}/U1_PfPR_ClinicalIncidence_severeTreatment.csv",
+                f"{expt_name}/U5_PfPR_ClinicalIncidence_severeTreatment.csv",
+                f"{expt_name}/MonthlyUsageLLIN.csv",
+                f"{expt_name}/monthly_Event_Count.csv",
+                f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup.csv",
+                f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup_withU5.csv",
+                f"{expt_name}/vector_numbers_monthly.csv"
+            ]
+            local_output_path = "ssmt_{}".format(expt_name)
         else:
+            analyzers = [
+                monthlyU5PfPRAnalyzer,
+                #monthlyTreatedCasesAnalyzer,  # sharon note: no Received_Treatment
+                #monthlySevereTreatedByAgeAnalyzer,
+                # monthlyUsageLLIN,   # sharon note: no Bednet_Using
+                monthlyEventAnalyzer,
+                MonthlyNewInfectionsAnalyzer,
+                MonthlyNewInfectionsAnalyzer_withU5
+            ]
             analysis = PlatformAnalysis(platform=platform,
                                         experiment_ids=[exp_id],
                                         analyzers=analyzers,
                                         analyzers_args=[
+                                            args_each,
+                                            #args_treat_case,
+                                            #args_no_u1,
                                             # args_each,
-                                            args_treat_case,
-                                            # args_no_u1,
-                                            # args_each,
-                                            # args_each,
-                                            # args_new_infect,
-                                            # args_new_infect_withU5,
+                                            args_each,
+                                            args_new_infect,
+                                            args_new_infect_withU5,
                                         ],
                                         analysis_name=wi_name)
+            download_filenames = [
+                f"{expt_name}/U5_PfPR_ClinicalIncidence.csv",
+                #f"{expt_name}/All_Age_monthly_Cases.csv",
+                #f"{expt_name}/U5_PfPR_ClinicalIncidence_severeTreatment.csv",
+                # f"{expt_name}/Treated_Severe_Monthly_Cases_By_Age.csv",
+                # f"{expt_name}/MonthlyUsageLLIN.csv",
+                f"{expt_name}/monthly_Event_Count.csv",
+                f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup.csv",
+                f"{expt_name}/newInfections_PfPR_cases_monthly_byAgeGroup_withU5.csv"
+            ]
+            local_output_path = "ssmt_{}".format(expt_name)
         analysis.analyze()
+        wi = analysis.get_work_item()
+        #wi = platform.get_item("f3e00bd4-5d64-f011-9f17-b88303912b51", item_type=ItemType.WORKFLOW_ITEM)  #local debug download
+        platform.get_files_by_id(wi.id, ItemType.WORKFLOW_ITEM, download_filenames, local_output_path)
