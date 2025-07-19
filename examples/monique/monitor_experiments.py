@@ -40,7 +40,7 @@ def check_experiment_and_trigger(exp_id, exp_type, exp_name):
 
         # If all sims succeeded and we haven't kicked off follow-up script yet
         if succeeded == total and exp_id not in processed_experiments:
-            print(f"✅ All simulations succeeded for {exp.name} ({exp_id}). Kicking off follow-up script...")
+            print(f"All simulations succeeded for {exp.name} ({exp_id}). Kicking off follow-up script...")
 
             # Call the follow-up script here (edit as needed)
             script_path = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_analysis.py')
@@ -53,7 +53,7 @@ def check_experiment_and_trigger(exp_id, exp_type, exp_name):
             processed_experiments.add(exp_id)
 
     except Exception as e:
-        print(f"❌ Error checking experiment {exp_id}: {e}")
+        print(f"Error checking experiment {exp_id}: {e}")
 
 if __name__ == "__main__":
     print("📡 Starting experiment monitor...\n")
