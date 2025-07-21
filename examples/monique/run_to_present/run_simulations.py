@@ -34,7 +34,7 @@ def _pre_run(experiment: Experiment, **kwargs):
     initialize_plugins(**kwargs)
 
 
-def _post_run(experiment, suite=None, **kwargs):
+def _post_run(experiment, **kwargs):
     """
     Add extra work after run experiment.
     Args:
@@ -43,21 +43,11 @@ def _post_run(experiment, suite=None, **kwargs):
     Return:
         None
     """
-    if suite:
-        print(f"SUITE_NAME: {suite.name}")
-        print(f"SUITE_ID: {suite.id}")
-        print(f"EXPERIMENT_NAME: {experiment.name}")
-        print(f"EXPERIMENT_ID: {experiment.id}")
-
-    else:
-        print(f"SUITE_NAME: None")
-        print(f"SUITE_ID: None")
-        print(f"EXPERIMENT_NAME: {experiment.name}")
-        print(f"EXPERIMENT_ID: {experiment.id}")
-
     if experiment.succeeded:
-        with open("monique\\run_to_present\\experiment_id.txt", "w") as fd:
+        with open("monique\\run_future_scenarios\\experiment_id.txt", "w") as fd:
             fd.write(experiment.id)
+    print(f"EXPERIMENT_NAME: {experiment.name}")
+    print(f"EXPERIMENT_ID: {experiment.id}")
 
 
 
@@ -103,10 +93,9 @@ def run_experiment(**kwargs):
     experiment = _config_experiment(**kwargs)
     _pre_run(experiment, **kwargs)
     if suite_id:
-        suite = platform.get_item(suite_id, ItemType.SUITE)
-        suite.add_experiment(experiment)
+        experiment.parent_id = suite_id
     experiment.run(wait_until_done=False)
-    _post_run(experiment, suite=None, **kwargs)
+    _post_run(experiment, **kwargs)
 
 
 if __name__ == "__main__":

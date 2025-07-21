@@ -90,10 +90,9 @@ def run_experiment(**kwargs):
     experiment = _config_experiment(**kwargs)
     _pre_run(experiment, **kwargs)
     if suite_id:
-        suite = platform.get_item(suite_id, ItemType.SUITE)
-        suite.add_experiment(experiment)
+        experiment.parent_id = suite_id
     experiment.run(wait_until_done=False)
-    _post_run(experiment, suite=None, **kwargs)
+    _post_run(experiment, **kwargs)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run experiment optionally using an existing suite_id")

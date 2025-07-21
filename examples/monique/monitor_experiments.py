@@ -3,6 +3,8 @@ import sys
 import time
 import subprocess
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import pandas as pd
 from idmtools.core.platform_factory import Platform
 from idmtools.core import ItemType
@@ -108,17 +110,28 @@ def main():
             break
 
         updated_rows = []
-        for exp_id, info in exp_id_dict.items():
-            result = check_experiment_and_trigger(platform, exp_id, info, df)
-            if result is not None:
-                updated_rows.append(result)
-            #logging.info(f"Sleeping {POLL_INTERVAL} seconds...\n")
+        with ThreadPoolExecutor(max_workers=2) as executor:  # you can adjust max_workers number as needed
+            future_to_exp = {
+                executor.submit(check_experiment_and_trigger, platform, exp_id, info, df.copy()): exp_id
+                for exp_id, info in exp_id_dict.items()
+            }
+
+            for future in as_completed(future_to_exp):
+                try:
+                    result = future.result()
+                    if result is not None:
+                        updated_rows.append(result)
+                except Exception as e:
+                    logging.error(f"Error in thread for experiment {future_to_exp[future]}: {e}")
+
         if updated_rows:
             updates_df = pd.concat(updated_rows)
+            df['analyzer_run_status'] = df['analyzer_run_status'].astype('object')
             for idx, row in updates_df.iterrows():
                 match = (df['experiment_id'] == row['experiment_id']) & (df['suite_id'] == row['suite_id'])
                 df.loc[match, 'analyzer_run_status'] = row['analyzer_run_status']
             save_suite_tracking(df)
+
         print(f"Sleeping {POLL_INTERVAL} seconds...\n")
         time.sleep(POLL_INTERVAL)
 
