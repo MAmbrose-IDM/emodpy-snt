@@ -98,14 +98,22 @@ def run_experiment(**kwargs):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run experiment optionally using an existing suite_id")
     parser.add_argument('--suite-id', type=str, help='Optional suite ID to reuse or track')
-    parser.add_argument('--no-warnings', action='store_true', help='Disable simulation API warnings')
+    parser.add_argument(
+        '--show-warnings-once',
+        type=str,
+        choices=['True', 'False', 'None'],
+        default='True',
+        help='True: show warning once, False: for all, None: suppress warnings'
+    )
     args = parser.parse_args()
 
-    platform = Platform('CALCULON')
+
+    def str_to_bool_none(val):
+        return {'True': True, 'False': False, 'None': None}[val]
 
     # Determine warning level
-    show_warnings = not args.no_warnings
-
+    show_warnings_once = str_to_bool_none(args.show_warnings_once)
+    platform = Platform('CALCULON')
     # If you don't have Eradication, un-comment out the following to download Eradication
     # import emod_malaria.bootstrap as dtk
     # import pathlib
@@ -114,5 +122,5 @@ if __name__ == "__main__":
     # os.chdir(os.path.dirname(__file__))
     # print("...done.")
     # run_experiment(show_warnings_once=True)
-    run_experiment(show_warnings_once=show_warnings, suite_id=args.suite_id)
+    run_experiment(show_warnings_once=show_warnings_once, suite_id=args.suite_id)
 

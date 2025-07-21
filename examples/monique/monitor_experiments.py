@@ -2,64 +2,125 @@ import os
 import sys
 import time
 import subprocess
+import logging
 import pandas as pd
 from idmtools.core.platform_factory import Platform
 from idmtools.core import ItemType
-from idmtools.entities.experiment import Experiment
 
+# Configuration
 CURRENT_DIRECTORY = os.path.dirname(__file__)
-suite_track_file = 'suite_tracking_new.csv'
-poll_interval = 60  # seconds
+SUITE_TRACK_FILE = os.path.join(CURRENT_DIRECTORY, 'suite_tracking.csv')
+POLL_INTERVAL = 60  # seconds
+# uncomment for local analyzer script:
+#ANALYZER_SCRIPT = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_analysis.py')
+# Uncomment for SSMT
+SSMT_SCRIPT = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_ssmt.py')
 
-# Initialize platform
-platform = Platform('CALCULON')
+# Logging setup
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
-# Load experiment tracking file
-df = pd.read_csv(os.path.join(CURRENT_DIRECTORY, suite_track_file))
-exp_id_dict = {
-    row['experiment_id']: {
-        'type': row.get('experiment_type', ''),
-        'name': row.get('experiment_name', '')
-    }
-    for _, row in df.iterrows()
-}
+def load_suite_tracking():
+    try:
+        return pd.read_csv(SUITE_TRACK_FILE)
+    except Exception as e:
+        logging.error(f"Failed to read {SUITE_TRACK_FILE}: {e}")
+        print(f"Failed to read {SUITE_TRACK_FILE}: {e}")
+        return pd.DataFrame()
 
-# Track which experiments we've already responded to
-processed_experiments = set()
+def save_suite_tracking(df):
+    try:
+        df.to_csv(SUITE_TRACK_FILE, index=False)
+    except Exception as e:
+        logging.error(f"Failed to write to {SUITE_TRACK_FILE}: {e}")
+        print(f"Failed to write to {SUITE_TRACK_FILE}: {e}")
 
-def check_experiment_and_trigger(exp_id, exp_type, exp_name):
+
+def check_experiment_and_trigger(platform, exp_id, info, df):
     try:
         exp = platform.get_item(exp_id, ItemType.EXPERIMENT)
         sims = exp.simulations
         status = exp.status.name
-        succeeded = sum(1 for s in sims if s.status.name.lower() == 'succeeded')
+        succeeded = sum(1 for s in sims if s.status.name == 'SUCCEEDED')
         total = len(sims)
 
-        print(f"[{exp.name}] {exp.id}: {status}")
-        print(f"  Total Sims: {total} | Succeeded: {succeeded} | Finished: {succeeded}/{total}")
+        logging.info(f"[{exp.name}] {exp.id}: {status} - {succeeded}/{total} SUCCEEDED")
+        print(f"[{exp.name}] {exp.id}: {status} - {succeeded}/{total} SUCCEEDED")
 
-        # If all sims succeeded and we haven't kicked off follow-up script yet
-        if succeeded == total and exp_id not in processed_experiments:
-            print(f"All simulations succeeded for {exp.name} ({exp_id}). Kicking off follow-up script...")
+        match = (df['experiment_id'] == exp_id) & (df['suite_id'] == exp.parent.id)
 
-            # Call the follow-up script here (edit as needed)
-            script_path = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_analysis.py')
-            subprocess.run([sys.executable, script_path, '--exp-id', exp_id, '--type', exp_type, '--name', exp_name])
+        # Ensure 'analyzer_run_status' exists
+        if 'analyzer_run_status' not in df.columns:
+            df['analyzer_run_status'] = pd.Series([None] * len(df), dtype='object')
+        else:
+            df['analyzer_run_status'] = df['analyzer_run_status'].astype('object')
 
-            # if run ssmt, uncomment following 2 lines
-            # ssmt_script_path = os.path.join(CURRENT_DIRECTORY, 'analyzers', 'post_ssmt.py')
-            # subprocess.run([sys.executable, ssmt_script_path, '--exp-id', exp_id, '--type', exp_type, '--name', exp_name])
+        # Check if analyzer should be triggered
+        if succeeded == total and df.loc[match, 'analyzer_run_status'].isnull().all():
+            logging.info(f"All simulations succeeded for {exp.name}. Launching analyzer...")
+            print(f"All simulations succeeded for {exp.name}. Launching analyzer...")
 
-            processed_experiments.add(exp_id)
+            # subprocess.Popen([sys.executable, ANALYZER_SCRIPT,
+            #                   '--exp-id', exp_id,
+            #                   '--type', info['type'],
+            #                   '--name', info['name']])
+            # Optional SSMT analyzer:
+            subprocess.run([sys.executable, SSMT_SCRIPT, '--exp-id', exp_id, '--type', info['type'], '--name', info['name']])
+
+            df.loc[match, 'analyzer_run_status'] = 'triggered'
+            return df.loc[match]  # return experiment row
+        else:
+            logging.info(f"Analyzer already triggered or not ready for: {exp.name}: {exp_id}")
+            print(f"Analyzer already triggered or not ready for: {exp.name}: {exp_id}")
+            return None
 
     except Exception as e:
+        logging.error(f"Error checking experiment {exp_id}: {e}")
         print(f"Error checking experiment {exp_id}: {e}")
+        return None
+
+def main():
+    logging.info("Starting experiment monitor...")
+    print("Starting experiment monitor...")
+
+    platform = Platform('CALCULON')
+
+    while True:
+        df = load_suite_tracking()
+
+        if df.empty:
+            logging.warning("No experiments found in tracking file.")
+            print("No experiments found in tracking file.")
+            return
+
+        # Build dictionary once
+        exp_id_dict = {
+            row['experiment_id']: {
+                'type': row.get('experiment_type', ''),
+                'name': row.get('experiment_name', '')
+            }
+            for _, row in df.iterrows()
+        }
+
+        # break if all experiments have been processed
+        if df['analyzer_run_status'].notnull().all():
+            logging.info("All experiments processed. Monitor exiting.")
+            #print("All experiments processed. Monitor exiting.")
+            break
+
+        updated_rows = []
+        for exp_id, info in exp_id_dict.items():
+            result = check_experiment_and_trigger(platform, exp_id, info, df)
+            if result is not None:
+                updated_rows.append(result)
+            #logging.info(f"Sleeping {POLL_INTERVAL} seconds...\n")
+        if updated_rows:
+            updates_df = pd.concat(updated_rows)
+            for idx, row in updates_df.iterrows():
+                match = (df['experiment_id'] == row['experiment_id']) & (df['suite_id'] == row['suite_id'])
+                df.loc[match, 'analyzer_run_status'] = row['analyzer_run_status']
+            save_suite_tracking(df)
+        print(f"Sleeping {POLL_INTERVAL} seconds...\n")
+        time.sleep(POLL_INTERVAL)
 
 if __name__ == "__main__":
-    print("📡 Starting experiment monitor...\n")
-    for exp_id, info in exp_id_dict.items():
-        exp_type = info['type']
-        exp_name = info['name']
-        check_experiment_and_trigger(exp_id, exp_type, exp_name)
-    print(f"⏳ Sleeping {poll_interval} seconds...\n")
-    time.sleep(poll_interval)
+    main()
