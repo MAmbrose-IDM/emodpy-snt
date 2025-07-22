@@ -95,6 +95,11 @@ def run_experiment(**kwargs):
     _post_run(experiment, **kwargs)
 
 if __name__ == "__main__":
+    """
+    - show_warnings_once=True:  show api warnings for only one simulation
+    - show_warnings_once=False: show api warnings for all simulations
+    - show_warnings_once=None:  not show api warnings
+    """
     parser = argparse.ArgumentParser(description="Run experiment optionally using an existing suite_id")
     parser.add_argument('--suite-id', type=str, help='Optional suite ID to reuse or track')
     parser.add_argument(
