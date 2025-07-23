@@ -37,7 +37,21 @@ python submit_parallel.py
 * Tracks submitted suite_id in suite_tracking_<experiment_type>.csv
 * <experiment_type> is either "to_present" or "future_projections" depending on FUTURE_PROJECTIONS = True
 
-### 3. What Happens Behind the Scenes
+### 3. Use Analyze Queue Manager
+
+```bash
+python analyzer_queue_manager.py
+```
+This is another way to run analyzer separately from run_simulation.py with centralized queue manager, so you can:
+* Control how many analyzers run at once
+* Prevent memory/CPU exhaustion
+* Cleanly separate experiment submission from analysis
+
+This script can run in console consistently. It monitors **analyzer_queue** folder for any file with .ready extension which generated from post_run in run_simulation.py with experiment_name, id, type info.
+Then fire another subprocess in backgroud for analyer(ssmt or local). Once subprocess is finished, it rename .ready file to .done. 
+The max parrellel analyzers to run can control by MAX_PARALLEL_ANALYZERS = 2 variable. This is useful when run analyzer locally.
+
+### 4. What Happens Behind the Scenes for run_simulations.py
 For each scenario row:
 
 A subprocess is launched using run_simulations.py
@@ -49,6 +63,8 @@ Once the experiment is committed:
 Scenario CSV is updated with status "done"
 
 And _post_run function in run_simulations.py will kick post-analysis (e.g., SSMT) script in another no-blocking subprocess
+
+post_run function is to create .ready file for analyzer_queue_manager.py to pick up
 
 Logs for analyzer are streamed to logs/ssmt_<experiment_type>.log
 

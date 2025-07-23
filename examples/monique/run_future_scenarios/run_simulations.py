@@ -61,7 +61,7 @@ def _post_run(experiment, suite_id, **kwargs):
         analyzer_script = os.path.join(manifest.CURRENT_DIR, "..", "analyzers", "post_ssmt.py")
         # replace with local analyzer script if needed
         # analyzer_script = os.path.join(manifest.CURRENT_DIR, "..", "analyzers", "post_analysis.py")
-        ssmt_log = os.path.join(manifest.CURRENT_DIR, "..", "logs", f"ssmt_analyzer_{params.experiment_type}_{params.scen_index}.log")
+        ssmt_log = os.path.join(manifest.CURRENT_DIR, "..", "logs", f"ssmt_analyzer_{experiment.name}_{experiment.id}.log")
 
         os.environ["NO_COLOR"] = "1"  # disable color in subprocess's log
 
@@ -78,10 +78,34 @@ def _post_run(experiment, suite_id, **kwargs):
                 encoding='utf-8'
             )
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Launched SSMT analyzer for experiment: {experiment.name}--{experiment.id}")
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Analyzer_log: {ssmt_log}")
 
     print(f"EXPERIMENT_NAME: {experiment.name}")
     print(f"EXPERIMENT_ID: {experiment.id}")
 
+
+def post_run(experiment, **kwargs):
+    """
+    This method is called after the experiment is done.
+    If the experiment is successful, it writes experiment name and id to a file for the analyzer manager to pick up.
+    Args:
+        experiment:
+        suite_id:
+        **kwargs:
+
+    Returns:
+
+    """
+    if experiment.succeeded:
+        # Signal to analyzer manager
+        queue_dir = os.path.join(manifest.CURRENT_DIR, "..", "analyzer_queue")
+        os.makedirs(queue_dir, exist_ok=True)
+        flag_file = os.path.join(queue_dir, f"exp_{experiment.id}.ready")
+
+        with open(flag_file, "w") as f:
+            f.write(f"{experiment.id},{experiment.name},{params.experiment_type}\n")
+
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Enqueued analyzer: {flag_file}")
 
 def _config_experiment(**kwargs):
     """
@@ -133,7 +157,11 @@ def run_experiment(**kwargs):
         #experiment = platform.get_item("562a49e1-8c67-f011-9f17-b88303912b51", ItemType.EXPERIMENT)  # debug purpose
         update_scenario_status_to_done(params.scenario_fname, params.scen_index)
 
+        # _post_run for directly call analyer in it
+        # post_run for signaling to analyzer manager (another way to call analyer).
+        # It is better to use post_run for local analyzer because it is easier to control how many analyers are running.
         _post_run(experiment, suite_id, **kwargs)
+        post_run(experiment, **kwargs)
     except Exception as e:
         print(f"Experiment run failed: {e}")
 
