@@ -39,7 +39,9 @@ if __name__ == "__main__":
     wi_name = '%s_%s' % (wi_name_base, expt_name)
 
     with Platform("CALCULON") as platform:
-        print(f"\n>>> Running analysis for {expt_name} ({exp_id}) [{exp_type}]")
+        print("\n\n")
+        print("============================New SSMT Analysis for Experiments==============================")
+        print(f"\n>>> Running analysis for experiment_name: {expt_name} experiment_id: {exp_id} [{exp_type}]")
 
         sweep_variables = ["Run_Number", "admin_name"]
         if itn_comparison_flag or climate_only_flag:

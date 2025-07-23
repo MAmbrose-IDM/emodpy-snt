@@ -21,5 +21,6 @@ burnin_id = 'c4cf2c26-0561-f011-aa23-b88303911bc1' # <- Calculon  #     'eb89ea6
 scenario_fname = os.path.join(manifest.project_path, 'simulation_inputs', '_intervention_file_references',
                               'Interventions_to_present.csv')
 scen_df = pd.read_csv(scenario_fname)
-scen_index = scen_df[scen_df['status'] == 'run'].index[0]
+scen_index = scen_df[scen_df['status'] == 'queued'].index[0]  # submitter changed this to queued (means queued for submitting to comps)
 expname = scen_df.at[scen_index, 'ScenarioName']
+experiment_type="to_present"
