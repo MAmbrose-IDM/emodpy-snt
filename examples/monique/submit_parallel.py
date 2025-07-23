@@ -10,7 +10,7 @@ from datetime import datetime
 # Configuration
 USER_PATH = None
 CURRENT_DIRECTORY = os.path.dirname(__file__)
-FUTURE_PROJECTIONS = True
+FUTURE_PROJECTIONS = False
 ANALYZER_STATUS = None
 
 experiment_type = "future_projections" if FUTURE_PROJECTIONS else "to_present"
@@ -67,6 +67,7 @@ def submit_experiment_nonblocking(sim_script, suite_id, idx, scenario_file, log_
         scenario_file: str, path to the scenario file.
         log_file_path: str, path to the log file.
     """
+    os.environ["NO_COLOR"] = "1"  # disable color in subprocess's log
     with open(log_file_path, "a", encoding="utf-8") as f:
         proc = subprocess.Popen(
             [
@@ -109,7 +110,6 @@ def main():
     # Create a new suite in COMPS.
     suite = create_suite(platform, experiment_type)
     suite_id, suite_name = str(suite.id), suite.name
-    print(f"Create suite in COMPS with Suite ID: {suite_id}")
     print(f"\nThe created suite can be viewed at {platform.endpoint}/#explore/"
                              f"Suites?filters=Id={suite_id}\n")
     # Append a new suite_id to a tracking file.
@@ -125,19 +125,19 @@ def main():
     # Create a log directory if it doesn't exist.'
     log_dir = os.path.join(CURRENT_DIRECTORY, "logs")
     os.makedirs(log_dir, exist_ok=True)
-    print(f"Log directory created at {log_dir}")
+    print(f"Log directory created at {log_dir}\n")
 
     # Submit simulations to COMPS in non-blocking mode.
     # Iterate over rows with the status 'run' in the scenario file. And submit them to COMPS.
     for idx in df_run.index:
-        print(f"Before run: Experiment at row {idx} status: '{df.loc[idx, 'status']}' in CSV file.")
+        print(f"Before submit: Experiment at row {idx} status: '{df.loc[idx, 'status']}' in CSV file.")
         # log file path:
         log_path = os.path.join(log_dir, f"scenario_{experiment_type}_{idx}.log")
         # submit the experiment to COMPS in non-blocking mode with background processes.
         # to see progress, open the log file
         submit_experiment_nonblocking(sim_script, suite_id, idx, scenario_file, log_path)
         df.loc[idx, 'status'] = 'queued'
-        print(f"After run: Experiment at row {idx} status: '{df.loc[idx, 'status']}' in CSV file.")
+        print(f"After submit: Experiment at row {idx} status: '{df.loc[idx, 'status']}' in CSV file.")
         print(f"Dispatched experiment at row {idx} to COMPS\n")
 
     df.to_csv(scenario_file, index=False)

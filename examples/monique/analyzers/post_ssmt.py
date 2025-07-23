@@ -2,6 +2,8 @@
 # 1) python post_ssmt.py --exp-id 0c947c48-1764-f011-9f17-b88303912b51 --type "to_present" --name "example_to_present"
 # 2) python post_ssmt.py --exp-id c3b0861e-1764-f011-9f17-b88303912b51 --type "future_projections" --name "example_projection_v3"
 import argparse
+from datetime import datetime
+
 from idmtools.analysis.platform_anaylsis import PlatformAnalysis
 from idmtools.core import ItemType
 
@@ -41,7 +43,7 @@ if __name__ == "__main__":
     with Platform("CALCULON") as platform:
         print("\n\n")
         print("============================New SSMT Analysis for Experiments==============================")
-        print(f"\n>>> Running analysis for experiment_name: {expt_name} experiment_id: {exp_id} [{exp_type}]")
+        print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Running analysis for experiment_name: {expt_name} experiment_id: {exp_id}")
 
         sweep_variables = ["Run_Number", "admin_name"]
         if itn_comparison_flag or climate_only_flag:

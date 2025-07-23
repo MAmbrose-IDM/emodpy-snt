@@ -2,6 +2,8 @@
 # 1) python post_analysis.py --exp-id 0c947c48-1764-f011-9f17-b88303912b51 --type "to_present" --name "example_to_present"
 # 2) python post_analysis.py --exp-id c3b0861e-1764-f011-9f17-b88303912b51 --type "future_projections" --name "example_projection_v3"
 import argparse
+from datetime import datetime
+
 from idmtools.analysis.analyze_manager import AnalyzeManager
 from idmtools.core import ItemType
 
@@ -37,7 +39,9 @@ if __name__ == "__main__":
     climate_only_flag = False
 
     with Platform("CALCULON") as platform:
-        print(f"\n>>> Running analysis for {expt_name} ({exp_id}) [{exp_type}]")
+        print("\n\n")
+        print("============================New Local Analysis for Experiments==============================")
+        print(f"\n{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Running analysis for experiment_name: {expt_name} experiment_id: {exp_id}")
 
         sweep_variables = ["Run_Number", "admin_name"]
         if itn_comparison_flag or climate_only_flag:
