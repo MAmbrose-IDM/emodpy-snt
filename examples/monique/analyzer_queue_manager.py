@@ -3,9 +3,11 @@
 # Prevent memory/CPU exhaustion
 # Cleanly separate experiment submission from analysis
 import os
+import signal
 import time
 import subprocess
 import sys
+from datetime import datetime
 
 QUEUE_DIR = "analyzer_queue"
 LOG_DIR = "logs"
@@ -15,23 +17,8 @@ ANALYZER_SCRIPT = "analyzers/post_analysis.py"
 
 running = {}
 
-def clean_flag(flag_path):
-    """
-    rename file extension from .ready to .done
-    Args:
-        flag_path:
-
-    Returns:
-
-    """
-    done_path = flag_path.replace(".ready", ".done")
-    if os.path.exists(flag_path):
-        try:
-            os.rename(flag_path, done_path)
-        except FileNotFoundError:
-            print(f"File already handled: {flag_path}")
-    else:
-        print(f"Flag file not found when cleaning: {flag_path}")
+def log(msg):
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {msg}")
 
 def launch_analyzer(exp_id, exp_name, exp_type):
     """
@@ -65,6 +52,11 @@ def launch_analyzer(exp_id, exp_name, exp_type):
     )
     return proc, log_file
 
+def graceful_exit(signum, frame):
+    print("Stopping analyzer manager...")
+    sys.exit(0)
+
+
 def main():
     """
     Consistently run analyzers until interrupted.
@@ -72,6 +64,7 @@ def main():
     Returns:
 
     """
+    signal.signal(signal.SIGINT, graceful_exit)
     os.makedirs(QUEUE_DIR, exist_ok=True)
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -82,24 +75,36 @@ def main():
         for fname in ready_files:
             if len(running) >= MAX_PARALLEL_ANALYZERS:
                 break
+            if not fname.endswith(".ready"):
+                continue
 
-            path = os.path.join(QUEUE_DIR, fname)
-            with open(path) as f:
+            ready_path = os.path.join(QUEUE_DIR, fname)
+            working_path = ready_path.replace(".ready", ".working")
+            print(f"Replace: {ready_path} → {working_path}")
+
+            try:
+                os.rename(ready_path, working_path)
+            except FileNotFoundError:
+                continue  # Another process already picked it up
+
+            # Parse the flag content
+            with open(working_path) as f:
                 line = f.read().strip()
                 exp_id, exp_name, exp_type = line.split(',')
 
             proc, log_file = launch_analyzer(exp_id, exp_name, exp_type)
-            running[proc.pid] = (proc, log_file, path)
+            running[proc.pid] = (proc, log_file, working_path)
 
         # Check running processes to see if any analyzers have completed
         finished = []
         for pid, (proc, log_file, flag_path) in running.items():
-            # If the process has finished  (not None)
+            # If the process has finished (not None)
             if proc.poll() is not None:
-                log_file.close() # Close the log file
-                clean_flag(flag_path)  # Rename .ready → .done
-                print(f"Analyzer for {flag_path} finished.")
-                finished.append(pid)  # Mark this PID for removal from tracking
+                log_file.close()
+                done_path = flag_path.replace(".working", ".done")
+                os.rename(flag_path, done_path)
+                print(f"Analyzer completed: {flag_path} → {done_path}")
+                finished.append(pid)
 
         for pid in finished:
             del running[pid]
