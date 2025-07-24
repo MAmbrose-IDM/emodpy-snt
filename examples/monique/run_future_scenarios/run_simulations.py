@@ -84,7 +84,7 @@ def _post_run(experiment, suite_id, **kwargs):
     print(f"EXPERIMENT_ID: {experiment.id}")
 
 
-def post_run(experiment, **kwargs):
+def post_run(experiment, suite_id, **kwargs):
     """
     This method is called after the experiment is done.
     If the experiment is successful, it writes experiment name and id to a file for the analyzer manager to pick up.
@@ -106,6 +106,11 @@ def post_run(experiment, **kwargs):
             f.write(f"{experiment.id},{experiment.name},{params.experiment_type}\n")
 
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')[:-3]}: Enqueued analyzer: {flag_file}")
+
+        # uncomment out the following if you want to update suite tracking file with experiment status
+        # suite = platform.get_item(suite_id, ItemType.SUITE, raw=True)
+        # time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # update_suite_tracking(experiment, suite, params.experiment_type, tracking_file, time_stamp)
 
 def _config_experiment(**kwargs):
     """
@@ -157,11 +162,12 @@ def run_experiment(**kwargs):
         #experiment = platform.get_item("562a49e1-8c67-f011-9f17-b88303912b51", ItemType.EXPERIMENT)  # debug purpose
         update_scenario_status_to_done(params.scenario_fname, params.scen_index)
 
-        # _post_run for directly call analyer in it
-        # post_run for signaling to analyzer manager (another way to call analyer).
-        # It is better to use post_run for local analyzer because it is easier to control how many analyers are running.
+        # Note:
+        # Choose one of the following two lines (and comment out no needed one), depending on your preference or requirement
+        # _post_run: Analyzer is launched in background automatically after experiment is done.
+        # post_run: For signaling to analyzer queue manager (another script runs analyzer in the background).
         _post_run(experiment, suite_id, **kwargs)
-        post_run(experiment, **kwargs)
+        post_run(experiment, suite_id, **kwargs)
     except Exception as e:
         print(f"Experiment run failed: {e}")
 
