@@ -19,9 +19,10 @@ burnin_id = '352e2f2f-0c61-f011-aa23-b88303911bc1'  # generated from 2010-2021 r
 scenario_fname = os.path.join(manifest.project_path, 'simulation_inputs', '_intervention_file_references',
                               'Interventions_for_projections.csv')
 scen_df = pd.read_csv(scenario_fname)
-scen_index = scen_df[scen_df['status'] == 'run'].index[0]
+scen_index = scen_df[scen_df['status'] == 'queued'].index[0]
 expname = scen_df.at[scen_index, 'ScenarioName']
 expname = f'{expname}_v3'
 
 demographics_file = os.path.join('demographics_and_climate', '_entire_country',
                                  f'demographics_each_admin_{population_size}.json')
+experiment_type="future_projections"
