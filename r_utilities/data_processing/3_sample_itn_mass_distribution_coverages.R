@@ -172,6 +172,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
   
   # iterate through admins where distributions occurred, calculating the distribution coverages from the coverage at the next DHS survey year and the retention times
   all_admins = unique(itn_distributions_by_admin$admin_name)
+  all_admins = all_admins[!is.na(all_admins)]
   coverage_df = data.frame()
   for(aa in 1:length(all_admins)){
     # subset dhs coverage data and itn distribution dates to this admin
@@ -635,7 +636,7 @@ create_seasonality_calibration_itn_from_DHS = function(hbhi_dir, itn_variables, 
   
   # iterate through variables (age groups)
   for(i_var in 1:length(itn_variables)){
-    coverage_df = data.frame('value' = archetype_rates[[paste0(itn_variables[i_var],'_rate')]], 'admin_name'=archetype_rates$archetype, 'year'=archetype_rates$year,'net_life_lognormal_mu'=rep(calib_net_life_lognormal_mu, nrow(archetype_rates)),'net_life_lognormal_sigma'=rep(calib_net_life_lognormal_sigma, nrow(archetype_rates)))
+    coverage_df = data.frame('value' = archetype_rates[[paste0(itn_variables[i_var],'_rate')]], 'admin_name'=archetype_rates$seasonality_archetype, 'year'=archetype_rates$year,'net_life_lognormal_mu'=rep(calib_net_life_lognormal_mu, nrow(archetype_rates)),'net_life_lognormal_sigma'=rep(calib_net_life_lognormal_sigma, nrow(archetype_rates)))
     
     
     # iterate through distribution years, calculating the distribution coverages from the coverage at the next DHS survey year and the retention times
