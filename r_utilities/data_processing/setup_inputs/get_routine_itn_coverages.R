@@ -7,7 +7,7 @@ library(ggplot2)
 library(dplyr)
 
 
-add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_start_year, last_sim_year){
+add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_start_year, last_sim_year, include_trans_calib=FALSE){
   # read in admin and archetype info
   ds_pop_df_filename = paste0(hbhi_dir, '/admin_pop_archetype.csv')
   admin_pop_dataframe = read.csv(ds_pop_df_filename)
@@ -29,7 +29,7 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
   sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
   
   # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
-  if(!(all(sim_start_year:last_sim_year %in% sim_input_with_net_params$year))) warnings.warn('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
+  if(!(all(min(sim_input_with_net_params$year, na.rm=TRUE):last_sim_year %in% sim_input_with_net_params$year))) warning('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
   write.csv(sim_input_with_net_params, gsub('.csv', '_withDecay.csv', routine_itn_coverage_filename), row.names=FALSE)
   
   
@@ -40,11 +40,12 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
   archetype_rep_admins = unique(admin_pop_dataframe$seasonality_archetype)
   arch_sim_input = sim_input %>% merge(admin_pop_dataframe[,c('admin_name','seasonality_archetype', 'pop_size')]) %>%
     mutate(pop_mult_coverage = coverage * pop_size) %>%
-    group_by(seasonality_archetype) %>%
+    group_by(seasonality_archetype, year) %>%
     summarise(pop_mult_coverage_sum = sum(pop_mult_coverage),
               # mean_coverage = mean(coverage),
               # median_coverage = median(coverage),
-              pop_size = sum(pop_size)) %>%
+              pop_size = sum(pop_size),
+              simday = mean(simday)) %>%
     ungroup() %>%
     mutate(coverage = pop_mult_coverage_sum / pop_size)
                                        
@@ -53,26 +54,28 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
   arch_sim_input$net_life_lognormal_sigma = net_discard_decay$net_life_lognormal_sigma[1] 
   
   # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
-  if(!(all(sim_start_year:last_sim_year %in% arch_sim_input$year))) warnings.warn('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
+  if(!(all(min(arch_sim_input$year, na.rm=TRUE):last_sim_year %in% arch_sim_input$year))) warning('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
   write.csv(arch_sim_input, gsub('.csv', '_seasonCalib_withDecay.csv', routine_itn_coverage_filename), row.names=FALSE)
   
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
   #####  create transmission calibration input file  ####
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # read in sampled retention lognormal mus and sigmas
-  net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_quantile_discard_decay_params.csv'))
-  net_discard_decay = net_discard_decay[,which(colnames(net_discard_decay) %in% c('seed', 'net_life_lognormal_mu', 'net_life_lognormal_sigma'))]
-  num_seeds = max(1,max(net_discard_decay$seed, na.rm=TRUE), na.rm=TRUE)
-  
-  # combine coverage and net parameters (need separate row for each seed)
-  sim_input_with_seed = sim_input %>% slice(rep(1:n(), each=num_seeds))
-  sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
-  sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
-  
-  # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
-  if(!(all(sim_start_year:last_sim_year %in% sim_input_with_net_params$year))) warnings.warn('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
-  write.csv(sim_input_with_net_params, gsub('.csv', '_transCalib_withDecay.csv', routine_itn_coverage_filename), row.names=FALSE)
+  if(include_trans_calib){
+    # read in sampled retention lognormal mus and sigmas
+    net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_quantile_discard_decay_params.csv'))
+    net_discard_decay = net_discard_decay[,which(colnames(net_discard_decay) %in% c('seed', 'net_life_lognormal_mu', 'net_life_lognormal_sigma'))]
+    num_seeds = max(1,max(net_discard_decay$seed, na.rm=TRUE), na.rm=TRUE)
+    
+    # combine coverage and net parameters (need separate row for each seed)
+    sim_input_with_seed = sim_input %>% slice(rep(1:n(), each=num_seeds))
+    sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
+    sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
+    
+    # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
+    if(!(all(min(sim_input_with_net_params$year, na.rm=TRUE):last_sim_year %in% sim_input_with_net_params$year))) warning('The routine ITN file does not list all years separately, so if insecticide resistance changes by year, not all changes will be captured by ITN distributions. Please update input-creation scripts!')
+    write.csv(sim_input_with_net_params, gsub('.csv', '_transCalib_withDecay.csv', routine_itn_coverage_filename), row.names=FALSE)
+  }
 }
 
 
@@ -88,7 +91,7 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
 
 # provides nets on birthdays, assumes the same coverage across all years and all admins
 create_epi_itn_inputs = function(hbhi_dir, birthday_ages=c(1,3), coverage_each_birthday=c(0.915, 0.732), epi_itn_use_given_access=0.9, 
-                                 last_sim_year=2021, sim_start_year=2010, season_calib_start_year=2011, trans_calib_start_year=2010){
+                                 last_sim_year=2021, sim_start_year=2010, season_calib_start_year=2011, trans_calib_start_year=2010, include_trans_calib=FALSE){
   
   ds_pop_df_filename = paste0(hbhi_dir, '/admin_pop_archetype.csv')
   admin_pop_dataframe = read.csv(ds_pop_df_filename)
@@ -154,23 +157,24 @@ create_epi_itn_inputs = function(hbhi_dir, birthday_ages=c(1,3), coverage_each_b
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
   #####  create transmission calibration input file  ####
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # read in sampled retention lognormal mus and sigmas
-  net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_quantile_discard_decay_params.csv'))
-  net_discard_decay = net_discard_decay[,which(colnames(net_discard_decay) %in% c('seed', 'net_life_lognormal_mu', 'net_life_lognormal_sigma'))]
-  # combine coverage and net parameters (need separate row for each seed)
-  sim_input_with_seed = sim_input %>% slice(rep(1:n(), each=max(net_discard_decay$seed)))
-  sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
-  sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
-  
-  # create separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
-  sim_input_with_year = sim_input_with_net_params %>% slice(rep(1:n(), each=length(trans_calib_start_year:last_sim_year)))
-  sim_input_with_year$year = rep(trans_calib_start_year:last_sim_year, times=nrow(sim_input_with_net_params))
-  sim_input_with_year$simday = (sim_input_with_year$year - trans_calib_start_year) * 365 + 1
-  sim_input_with_year$duration = 365
-  
-  # write to csv
-  write.csv(sim_input_with_year, paste0(hbhi_dir, '/simulation_inputs/intermediate_files/ITN_coverage/epi_itn_use_coverages_trans_calib.csv'), row.names=FALSE)
-  
+  if(include_trans_calib){
+    # read in sampled retention lognormal mus and sigmas
+    net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_quantile_discard_decay_params.csv'))
+    net_discard_decay = net_discard_decay[,which(colnames(net_discard_decay) %in% c('seed', 'net_life_lognormal_mu', 'net_life_lognormal_sigma'))]
+    # combine coverage and net parameters (need separate row for each seed)
+    sim_input_with_seed = sim_input %>% slice(rep(1:n(), each=max(net_discard_decay$seed)))
+    sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
+    sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
+    
+    # create separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
+    sim_input_with_year = sim_input_with_net_params %>% slice(rep(1:n(), each=length(trans_calib_start_year:last_sim_year)))
+    sim_input_with_year$year = rep(trans_calib_start_year:last_sim_year, times=nrow(sim_input_with_net_params))
+    sim_input_with_year$simday = (sim_input_with_year$year - trans_calib_start_year) * 365 + 1
+    sim_input_with_year$duration = 365
+    
+    # write to csv
+    write.csv(sim_input_with_year, paste0(hbhi_dir, '/simulation_inputs/intermediate_files/ITN_coverage/epi_itn_use_coverages_trans_calib.csv'), row.names=FALSE)
+  }
 }
 # # CHECKING: does the access rate for the final year make sense given the number of births in that year and the number of nets 
 # # do these numbers align well with number of nets allocated to ANC compared with the number of births in Burundi?
