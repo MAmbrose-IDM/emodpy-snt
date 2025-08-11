@@ -7,7 +7,7 @@ library(ggplot2)
 library(dplyr)
 
 
-add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_start_year, last_sim_year, include_trans_calib=FALSE){
+add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_start_year, last_sim_year, season_calib_start_year, include_trans_calib=FALSE){
   # read in admin and archetype info
   ds_pop_df_filename = paste0(hbhi_dir, '/admin_pop_archetype.csv')
   admin_pop_dataframe = read.csv(ds_pop_df_filename)
@@ -36,18 +36,47 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
   ######   calibration input files   ##########
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # get mean estimate within archetype and assign value to representative admin
-  archetype_rep_admins = unique(admin_pop_dataframe$seasonality_archetype)
-  arch_sim_input = sim_input %>% merge(admin_pop_dataframe[,c('admin_name','seasonality_archetype', 'pop_size')]) %>%
-    mutate(pop_mult_coverage = coverage * pop_size) %>%
-    group_by(seasonality_archetype, year) %>%
-    summarise(pop_mult_coverage_sum = sum(pop_mult_coverage),
-              # mean_coverage = mean(coverage),
-              # median_coverage = median(coverage),
-              pop_size = sum(pop_size),
-              simday = mean(simday)) %>%
-    ungroup() %>%
-    mutate(coverage = pop_mult_coverage_sum / pop_size)
+  # difference in simday from main simulation and calibration (simday_calib = simday_main - this_value)
+  if(season_calib_start_year > sim_start_year){
+    simday_difference = (season_calib_start_year - sim_start_year)*365
+  } else{
+    warning('For setting simday in calibration input, we assume that calibration start year is later than to-present start year. However, this is not the case here. Please update code accordingly.')
+  }
+  if('birthday_age' %in% colnames(sim_input)){
+    # get mean estimate within archetype and assign value to representative admin
+    archetype_rep_admins = unique(admin_pop_dataframe$seasonality_archetype)
+    arch_sim_input = sim_input %>% merge(admin_pop_dataframe[,c('admin_name','seasonality_archetype', 'pop_size')]) %>%
+      mutate(pop_mult_coverage = coverage * pop_size) %>%
+      group_by(seasonality_archetype, year, birthday_age) %>%
+      summarise(pop_mult_coverage_sum = sum(pop_mult_coverage),
+                # mean_coverage = mean(coverage),
+                # median_coverage = median(coverage),
+                pop_size = sum(pop_size),
+                simday = mean(simday), 
+                duration = mean(duration)) %>%
+      ungroup() %>%
+      mutate(coverage = pop_mult_coverage_sum / pop_size) %>%
+      mutate(admin_name = seasonality_archetype) %>%
+      mutate(simday = simday - simday_difference) %>%
+      dplyr::filter(simday>=0)
+  } else{
+    # get mean estimate within archetype and assign value to representative admin
+    archetype_rep_admins = unique(admin_pop_dataframe$seasonality_archetype)
+    arch_sim_input = sim_input %>% merge(admin_pop_dataframe[,c('admin_name','seasonality_archetype', 'pop_size')]) %>%
+      mutate(pop_mult_coverage = coverage * pop_size) %>%
+      group_by(seasonality_archetype, year) %>%
+      summarise(pop_mult_coverage_sum = sum(pop_mult_coverage),
+                # mean_coverage = mean(coverage),
+                # median_coverage = median(coverage),
+                pop_size = sum(pop_size),
+                simday = mean(simday), 
+                duration = mean(duration)) %>%
+      ungroup() %>%
+      mutate(coverage = pop_mult_coverage_sum / pop_size) %>%
+      mutate(admin_name = seasonality_archetype) %>%
+      mutate(simday = simday - simday_difference) %>%
+      dplyr::filter(simday>=0)
+    }
                                        
   # add the mean net retention parameters
   arch_sim_input$net_life_lognormal_mu = net_discard_decay$net_life_lognormal_mu[1]
@@ -138,7 +167,8 @@ create_epi_itn_inputs = function(hbhi_dir, birthday_ages=c(1,3), coverage_each_b
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
   # get archetype representative admin names
   archetype_rep_admins = unique(admin_pop_dataframe$seasonality_archetype)
-  arch_sim_input = sim_input[sim_input$admin_name %in% archetype_rep_admins,]
+  arch_sim_input = sim_input[sim_input$admin_name %in% archetype_rep_admins,] %>%
+    mutate(admin_name = seasonality_archetype)
   
   # add the mean net retention parameters
   arch_sim_input$net_life_lognormal_mu = net_discard_decay$net_life_lognormal_mu[1]
