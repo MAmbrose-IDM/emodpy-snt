@@ -181,11 +181,14 @@ get_cm_timeseries_exp = function(cm_filepath, pop_sizes, end_year, exp_name, cur
 # ANC ITN
 ##############
 
-# ----- admin- or state-level CM intervention coverage ----- #
+# ----- admin- or state-level ANC intervention coverage ----- #
 get_itn_anc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year, get_state_level=TRUE){
   
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
+  if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
+
   input_df = merge(input_df, admin_info, by='admin_name')
   
   # ANC ITN is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
@@ -257,6 +260,93 @@ get_itn_anc_timeseries_by_state = function(input_filepath, admin_info, end_year,
 
 
 
+
+##############
+# EPI ITN
+##############
+
+# ----- admin- or state-level AEPINC intervention coverage ----- #
+get_itn_epi_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year, get_state_level=TRUE){
+  
+  input_df = read.csv(input_filepath)
+  if(!('seed' %in% input_df)) input_df$seed = 1
+  if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
+  
+  input_df = merge(input_df, admin_info, by='admin_name')
+  
+  # EPI ITN is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
+  input_df$years_repeated = input_df$duration/365
+  if(any(input_df$years_repeated>1)){
+    cur_years = unique(input_df$year)
+    for(yy in cur_years){
+      # get first instance of this year
+      cur_year = input_df[input_df$year==yy,]
+      if(cur_year$years_repeated[1]>1){
+        for(rr in 1:(cur_year$years_repeated[1] - 1)){
+          temp_year = cur_year
+          temp_year$year = cur_year$year + rr
+          temp_year$simday = cur_year$simday + rr*365
+          input_df = rbind(input_df, temp_year)
+        }
+      }
+    }
+  }
+  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
+    df_repeated = input_df[input_df$duration == -1,]
+    for(rr in 1:(end_year - df_repeated$year[1])){
+      temp_year = df_repeated
+      temp_year$year = df_repeated$year + rr
+      temp_year$simday = df_repeated$simday + rr*365
+      input_df = rbind(input_df, temp_year)
+    }
+  }
+  
+  if(get_state_level){
+    # if there are multiple values in a single year (for a single DS/LGA), take the mean of those values
+    input_df <- input_df %>% group_by(year, admin_name, State, seed) %>%
+      summarise(coverage=mean(coverage), pop_size=mean(pop_size)) %>% ungroup()
+    
+    # input_df = input_df[intersect(which(input_df$year >= min_year), which(input_df$year <= end_year)),]
+    # get population-weighted CM coverage across admins
+    input_df$multiplied_cov = input_df$coverage * input_df$pop_size
+    
+    # get sum of population sizes and multiplied CM coverage across included admins
+    input_df_agg_admin <- input_df %>% dplyr::select(year, State, seed, multiplied_cov, pop_size) %>% group_by(year, State, seed) %>%
+      summarise_all(sum) %>% ungroup()
+    # get population-weighted U5 coverage across all included admin by dividing by sum of population sizes
+    input_df_agg_admin$coverage = input_df_agg_admin$multiplied_cov / input_df_agg_admin$pop_size
+    
+    # get average within state and across seeds
+    input_agg = as.data.frame(input_df_agg_admin) %>% dplyr::select(year, State, coverage) %>%
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise(mean_coverage = mean(coverage),
+                       max_coverage = max(coverage),
+                       min_coverage = min(coverage))
+  } else{
+    # if there are multiple values in a single year (for a single DS/LGA), take the mean of those values
+    input_df <- input_df %>% group_by(year, admin_name, State, seed) %>%
+      summarise(coverage=mean(coverage)) %>% ungroup()
+    
+    # input_df = input_df[intersect(which(input_df$year >= min_year), which(input_df$year <= end_year)),]
+    input_df_agg_admin = input_df
+    
+    # take average across simulation seeds
+    input_agg = as.data.frame(input_df_agg_admin) %>% dplyr::select(year, coverage, State, admin_name) %>%
+      dplyr::group_by(year, State, admin_name) %>%
+      dplyr::summarise(mean_coverage = mean(coverage),
+                       max_coverage = max(coverage),
+                       min_coverage = min(coverage))
+  }
+  input_agg$scenario = exp_name
+  return(input_agg)
+}
+
+
+
+
+
+
 ##############
 # SMC
 ##############
@@ -264,6 +354,10 @@ get_smc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
+  if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
+  if('date_estimate' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-date_estimate)
+  
   input_df$u5_coverage_total = input_df$coverage_high_access_U5 * input_df$high_access_U5 + input_df$coverage_low_access_U5 * (1-input_df$high_access_U5)
   
   # get mean across rounds within a year
