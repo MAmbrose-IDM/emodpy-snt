@@ -58,8 +58,8 @@ class ChannelByMultiYearSeasonCohortInsetAnalyzer(BaseCalibrationAnalyzer):
         simdata = simdata.rename(columns={self.population_channel: 'Trials',
                                           self.comparison_channel: 'Observations'})
 
-        s1 = simdata.groupby('Month')['Trials'].agg(np.mean).reset_index()
-        s2 = simdata.groupby('Month')['Observations'].agg(np.sum).reset_index()
+        s1 = simdata.groupby('Month')['Trials'].agg(mean).reset_index()
+        s2 = simdata.groupby('Month')['Observations'].agg(sum).reset_index()
         simdata = pd.merge(left=s1, right=s2, on='Month')
         simdata = simdata[['Month', 'Trials', 'Observations']]
 
