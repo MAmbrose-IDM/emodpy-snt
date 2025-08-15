@@ -120,7 +120,7 @@ class ChannelByMultiYearSeasonCohortInsetAnalyzer(BaseCalibrationAnalyzer):
                 ax.plot(plot_df['Month'], plot_df['incidence'], '-', color='r', linewidth=0.5, alpha=0.3)
 
             adf = pd.concat([selected[i].reset_index() for i in selected_index])
-            plot_df = adf.groupby('Month').agg(np.mean).reset_index()
+            plot_df = adf.groupby('Month').agg('mean').reset_index()
             plot_df['incidence'] = plot_df['Observations'] / plot_df['Trials'] * 1000
             ax.plot(plot_df['Month'], plot_df['incidence'], '-o', color='r', label=f'iter {iteration} sample {sample}')
             ax.plot(ref['Month'], ref['incidence'],

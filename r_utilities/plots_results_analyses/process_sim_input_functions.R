@@ -26,7 +26,7 @@ get_cm_timeseries_by_state = function(cm_filepath, admin_info, end_year, exp_nam
   
   input_df = read.csv(cm_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
-  input_df = merge(input_df, admin_info, by='admin_name')
+  input_df = merge(input_df, admin_info)
   
   # CM is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
   input_df$years_repeated = input_df$duration/365
@@ -138,7 +138,7 @@ get_cm_timeseries_exp = function(cm_filepath, pop_sizes, end_year, exp_name, cur
   
   
   # get population-weighted CM coverage across admins
-  input_df = merge(input_df, pop_sizes, by='admin_name')
+  input_df = merge(input_df, pop_sizes)
   input_df$multiplied_U5_cm = input_df$U5_coverage * input_df$pop_size
   
   # get sum of population sizes and multiplied CM coverage across included admins
@@ -189,7 +189,7 @@ get_itn_anc_timeseries_by_state = function(input_filepath, admin_info, end_year,
   if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
   if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
 
-  input_df = merge(input_df, admin_info, by='admin_name')
+  input_df = merge(input_df, admin_info)
   
   # ANC ITN is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
   input_df$years_repeated = input_df$duration/365
@@ -273,7 +273,7 @@ get_itn_epi_timeseries_by_state = function(input_filepath, admin_info, end_year,
   if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
   if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
   
-  input_df = merge(input_df, admin_info, by='admin_name')
+  input_df = merge(input_df, admin_info)
   
   # EPI ITN is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
   input_df$years_repeated = input_df$duration/365
@@ -361,7 +361,7 @@ get_smc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   input_df$u5_coverage_total = input_df$coverage_high_access_U5 * input_df$high_access_U5 + input_df$coverage_low_access_U5 * (1-input_df$high_access_U5)
   
   # get mean across rounds within a year
-  input_df <- input_df %>% group_by(year, admin_name, seed) %>%
+  input_df <- input_df %>% dplyr::select(-State) %>% group_by(year, admin_name, seed) %>%
     summarise_all(mean) %>% ungroup()
   
   # create data frame with all admin-years as zeros if SMC isn't specified as given in input file
@@ -414,7 +414,8 @@ get_itn_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
 
   # get mean across rounds within a year
   input_df <- input_df %>% group_by(year, admin_name, seed) %>%
-    summarise(itn_u5 = mean(itn_u5)) %>% ungroup()
+    summarise(itn_u5 = mean(itn_u5)) %>% ungroup() %>%
+    filter(year<=end_year)
   
   # create data frame with all admin-years as zeros if SMC isn't specified as given in input file
   admin_years = merge(admin_info, data.frame('year'=seq(min_year, end_year)), all=TRUE)
@@ -464,7 +465,7 @@ get_vacc_timeseries_by_state = function(input_filepath, admin_info, end_year, ex
   
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
-  input_df = merge(input_df, admin_info, by='admin_name')
+  input_df = merge(input_df, admin_info)
   
   # look just at coverage for primary series
   input_df = input_df[input_df$vaccine == 'primary',]
@@ -535,7 +536,7 @@ get_pmc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
     summarise(coverage = mean(coverage), simday=min(simday)) %>% 
     ungroup()  
   input_df$year = round(input_df$simday/365 + min_year)
-  input_df = merge(input_df, admin_info, by='admin_name')
+  input_df = merge(input_df, admin_info)
   
   # PMC coverage is specified only once (and then continues for remainder of simulation after the start day)
   # NOTE: assumes same delivery dates across LGAs
