@@ -1082,6 +1082,78 @@ get_burden_timeseries_by_lga = function(exp_filepath, exp_name, pop_filepath, ov
 #' }
 
 
+# ----- LLIN, IRS, vaccine, PMC intervention coverage by state ----- #
+get_intervention_use_timeseries_state = function(exp_filepath, exp_name, pop_sizes, min_year, max_year, indoor_protection_fraction, plot_by_month=FALSE){
+  #'  @description subset simulation output to appropriate admin(s) and time period, and calculate monthly net usage, net distribution, and IRS coverage across all runs
+  #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum ITN coverage across seeds, as well as columns for mean nets distributed and IRS coverages, and also a column for the scenario name
+  
+  # read in simulation information, merge to single dataframe, subset to appropriate years
+  interv_use_all = fread(paste0(exp_filepath, '/MonthlyUsageLLIN.csv'))
+  interv_dist_all = fread(paste0(exp_filepath, '/monthly_Event_Count.csv'))
+  intervention_use_columns_orig = c('Bednet_Using')
+  intervention_use_columns_new_name = c('itn_used_per_cap')
+  intervention_use_columns = intervention_use_columns_orig[intervention_use_columns_orig %in% colnames(interv_use_all)]
+  intervention_distribution_columns_orig = c('Received_IRS', 'Received_Vaccine', 'Received_Campaign_Drugs', 'Received_PMC_VaccDrug', 'Bednet_Got_New_One')
+  intervention_distribution_columns_new_name = c('irs_per_cap', 'vacc_per_cap', 'smc_per_cap', 'pmc_per_cap', 'new_net_per_cap')
+  intervention_distribution_columns = intervention_distribution_columns_orig[intervention_distribution_columns_orig %in% colnames(interv_dist_all)]
+  intervention_columns = c(intervention_use_columns, intervention_distribution_columns)
+  interv_dist_all = interv_dist_all %>% dplyr::select(one_of(c('admin_name', 'date', 'Run_Number', intervention_distribution_columns)))
+  interv_all = merge(interv_use_all, interv_dist_all, by=c('admin_name', 'date', 'Run_Number'))
+  interv_all$date = as.Date(interv_all$date)
+  interv_all$year = lubridate::year(interv_all$date)
+  interv_all = interv_all[intersect(which(interv_all$year >= min_year), which(interv_all$year <= max_year)),]
+  colnames(interv_all) = gsub(' ','.',colnames(interv_all))
+  
+  # rescale numbers to the true population in each admin, rather than the simulated population size
+  interv_all = merge(interv_all, pop_sizes, by='admin_name')
+  colnames(interv_all)[colnames(interv_all) == 'pop_size'] = 'true_population'
+  interv_pop_scaled = as.data.frame(interv_all)
+  interv_pop_scaled[,intervention_columns] = interv_pop_scaled[,intervention_columns]* (interv_pop_scaled$true_population / interv_pop_scaled$Statistical.Population)
+  
+  # get sum of numbers across all included admins (keeping runs and months separate)
+  interv_sums = interv_pop_scaled %>% dplyr::select(one_of('year', 'date', 'Run_Number', 'State', 'true_population', intervention_columns)) %>% dplyr::group_by(date, year, State, Run_Number) %>% 
+    dplyr::summarise_all(sum) %>% ungroup()
+  interv_per_capita = interv_sums
+  interv_per_capita[,intervention_columns] = interv_per_capita[,intervention_columns] / interv_per_capita$true_population
+  
+  # for bednets, rescale use rates to un-adjust for the fraction of time spent under a net
+  if('Bednet_Using' %in% colnames(interv_per_capita)) interv_per_capita$Bednet_Using = interv_per_capita$Bednet_Using / indoor_protection_fraction
+  
+  # get average coverage across months in a year for the annual report
+  if(!plot_by_month){
+    interv_use_sums = interv_per_capita %>% dplyr::select(one_of('year', 'Run_Number', 'State', intervention_use_columns)) %>% dplyr::group_by(year, State, Run_Number) %>% # take average across months for annual coverage
+      dplyr::summarise_all(mean) %>% ungroup()
+    interv_dist_sums = interv_per_capita %>% dplyr::select(one_of('year', 'Run_Number', 'State', intervention_distribution_columns)) %>% dplyr::group_by(year, State, Run_Number) %>% # take sum across months for annual total
+      dplyr::summarise_all(sum) %>% ungroup()
+    interv_per_capita = merge(interv_use_sums, interv_dist_sums, all=TRUE)
+  } 
+  
+  # take average across simulation seeds
+  if(plot_by_month){
+    interv_agg = interv_per_capita %>% dplyr::select(one_of('year', 'date', 'State', intervention_columns)) %>% 
+      dplyr::group_by(year, date, State) %>%
+      dplyr::summarise_all(mean)
+  } else{
+    interv_agg = interv_per_capita %>% dplyr::select(one_of('year', 'State', intervention_columns)) %>%  # , new_net_per_cap
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise_all(mean)
+  }
+  
+  # update column names for plotting
+  for(cc in intervention_columns){
+    if(cc %in% intervention_use_columns){
+      colnames(interv_agg)[colnames(interv_agg)==cc] = intervention_use_columns_new_name[which(intervention_use_columns_orig==cc)]
+    } else{
+      colnames(interv_agg)[colnames(interv_agg)==cc] = intervention_distribution_columns_new_name[which(intervention_distribution_columns_orig==cc)]
+    }
+  }
+  
+  interv_agg$scenario = exp_name
+  return(interv_agg)
+}
+
+
+# ----- LLIN, IRS, vaccine, PMC intervention coverage nationally ----- #
 get_intervention_use_timeseries_exp = function(exp_filepath, exp_name, cur_admins, pop_sizes, min_year, max_year, indoor_protection_fraction, plot_by_month=TRUE){
   #'  @description subset simulation output to appropriate admin(s) and time period, and calculate monthly net usage, net distribution, and IRS coverage across all runs
   #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum ITN coverage across seeds, as well as columns for mean nets distributed and IRS coverages, and also a column for the scenario name
@@ -1155,7 +1227,7 @@ get_intervention_use_timeseries_exp = function(exp_filepath, exp_name, cur_admin
 }
 
 
-# ----- CM intervention coverage ----- #
+# ----- CM intervention coverage by state ----- #
 get_cm_timeseries_by_state = function(cm_filepath, admin_info, end_year, exp_name, min_year, plot_by_month=TRUE){
   
   cm_input = read.csv(cm_filepath)
