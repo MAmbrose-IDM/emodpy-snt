@@ -288,6 +288,8 @@ def set_starting_spline_values_from_file_constantMonthly(spline, initial_month_v
         spline.loc[spline['Name'] == val_name, 'Min'] = cur_month_values.iloc[0][val_name] * 0.98
         spline.loc[spline['Name'] == val_name, 'Max'] = cur_month_values.iloc[0][val_name] * 1.02
 
+    spline.loc[spline['Name'] == 'MaxHab', 'Guess'] = cur_month_values.iloc[0]['MaxHab']
+
     return spline
 
 def get_cases(hfca, project_path):
