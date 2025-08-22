@@ -112,7 +112,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     g_net_use = ggplot(inter_use_df, aes(x=as.Date(date), y=itn_used_per_cap, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0('LLIN use (all ages)')) + 
@@ -124,7 +124,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     g_net_use = ggplot(inter_use_df, aes(x=year, y=itn_used_per_cap, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       # geom_hline(yintercept=0.22, alpha=0.1)+
       # geom_hline(yintercept=0.39, alpha=0.1)+
@@ -182,7 +182,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     } else{
       g_pmc = ggplot(inter_use_df, aes(x=year, y=pmc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('PMC doses per person')) + 
@@ -210,7 +210,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     } else{
       g_smc = ggplot(inter_use_df, aes(x=year, y=smc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('SMC doses per person')) + 
@@ -238,7 +238,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     } else{
       g_irs = ggplot(inter_use_df, aes(x=year, y=irs_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('IRS per person')) + 
@@ -257,7 +257,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     g_cm = ggplot(cm_df, aes(x=as.Date(date), y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0('Effective treatment rate (U5)')) + 
@@ -269,7 +269,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     g_cm = ggplot(cm_df, aes(x=year, y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('Effective treatment rate (U5)')) + 
