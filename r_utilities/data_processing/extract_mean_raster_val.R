@@ -27,7 +27,7 @@ extract_mean = function(raster_path, admin_shape, admin_colname, layer=NA) {
   }
   
   # Extract mean values by county
-  vals = terra::extract(raster, admin_shape, 'mean')
+  vals = terra::extract(raster, admin_shape, 'mean', na.rm=TRUE)
   
   # Combine with county ID and year
   out = data.frame(
