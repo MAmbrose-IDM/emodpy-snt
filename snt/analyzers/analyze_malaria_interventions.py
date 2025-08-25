@@ -20,8 +20,8 @@ class monthlyEventAnalyzerITN(IAnalyzer):
                                                    )
         self.sweep_variables = sweep_variables or ["admin_name", "Run_Number"]
         if channels is None:
-            self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment',
-                             'Received_Self_Medication', 'Bednet_Using', # 'Bednet_Got_New_One',
+            self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment',  # 'Received_Self_Medication',
+                             'Bednet_Using', # 'Bednet_Got_New_One',
                              # currently removed 'Bednet_Got_New_One', since length is 1 longer than expected for unknown reasons
                              'Received_Campaign_Drugs', 'Received_IRS', 'Received_Vaccine', 'Received_PMC_VaccDrug']
         else:
@@ -60,8 +60,8 @@ class monthlyEventAnalyzerITN(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True, )
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
@@ -87,7 +87,7 @@ class monthlyEventAnalyzer(IAnalyzer):
         self.sweep_variables = sweep_variables or ["admin_name", "Run_Number"]
         if channels is None:
             self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment',
-                             'Received_Self_Medication', 'Bednet_Using', # 'Bednet_Got_New_One',
+                             'Bednet_Using', # 'Bednet_Got_New_One',  # 'Received_Self_Medication',
                              # currently removed 'Bednet_Got_New_One', since length is 1 longer than expected for unknown reasons
                              'Received_Campaign_Drugs', 'Received_IRS', 'Received_Vaccine', 'Received_PMC_VaccDrug']
         else:
@@ -126,15 +126,14 @@ class monthlyEventAnalyzer(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True, )
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
 
         df = adf.groupby(['admin_name', 'date', 'Run_Number'])[self.channels].agg(np.sum).reset_index()
         df.to_csv(os.path.join(self.working_dir, self.expt_name, 'monthly_Event_Count%s.csv' % self.output_file_suffix), index=False)
-
 
 
 class monthlyUsageLLIN(IAnalyzer):
@@ -167,16 +166,20 @@ class monthlyUsageLLIN(IAnalyzer):
 
     def map(self, data, simulation):
 
-        simdata = pd.DataFrame({x: data[self.filenames[0]]['Channels'][x]['Data'] for x in self.channels})
+        channels_in_expt = [x for x in self.channels if x in data[self.filenames[0]]['Channels'].keys()]
+        simdata = pd.DataFrame({x: data[self.filenames[0]]['Channels'][x]['Data'] for x in channels_in_expt})
         simdata['Time'] = simdata.index
 
         d = pd.DataFrame({x: data[self.filenames[1]]['Channels'][x]['Data'] for x in self.inset_channels})
         d['Time'] = d.index
 
-        if len(self.channels) > 0:
+        if len(channels_in_expt) > 0:
             simdata = pd.merge(left=simdata, right=d, on='Time')
         else:
             simdata = d
+        for missing_channel in [x for x in self.channels if x not in channels_in_expt]:
+            simdata[missing_channel] = 0
+
         simdata['day_of_year'] = simdata['Time'] % 365
         simdata['month'] = simdata['day_of_year'].apply(lambda x: self.monthparser((x + 1) % 365))
         simdata['year'] = simdata['Time'].apply(lambda x: int(x / 365) + self.start_year)
@@ -193,8 +196,8 @@ class monthlyUsageLLIN(IAnalyzer):
             print("No data have been returned... Exiting...")
             return
 
-        if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
-            os.mkdir(os.path.join(self.working_dir, self.expt_name))
+        output_dir = os.path.join(self.working_dir, self.expt_name)
+        os.makedirs(output_dir, exist_ok=True)
 
         adf = pd.concat(selected).reset_index(drop=True)
         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
