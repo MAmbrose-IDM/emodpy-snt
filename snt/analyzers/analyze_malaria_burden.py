@@ -122,6 +122,9 @@ class monthlyU5PfPRAnalyzer(IAnalyzer):
         adf.to_csv((os.path.join(self.working_dir, self.expt_name, 'U5_PfPR_ClinicalIncidence.csv')), index=False)
 
 
+
+
+
 class monthlyTreatedCasesAnalyzer(IAnalyzer):
 
     @classmethod
@@ -198,6 +201,131 @@ class monthlyTreatedCasesAnalyzer(IAnalyzer):
         output_dir = os.path.join(self.working_dir, self.expt_name)
         os.makedirs(output_dir, exist_ok=True)
         adf.to_csv(os.path.join(self.working_dir, self.expt_name, 'All_Age_monthly_Cases.csv'), index=False)
+
+
+
+
+#
+# class monthlyTreatedCasesAnalyzer_wSevereAdjustment(IAnalyzer):
+#
+#     @classmethod
+#     def monthparser(self, x):
+#         if x == 0:
+#             return 12
+#         else:
+#             return datetime.datetime.strptime(str(x), '%j').month
+#
+#     def __init__(self, expt_name, channels=None, sweep_variables=None, working_dir=".", start_year=2020, end_year=2026):
+#         super(monthlyTreatedCasesAnalyzer_wSevereAdjustment, self).__init__(working_dir=working_dir,
+#                                                           filenames=["output/ReportEventCounter.json",
+#                                                                      "output/ReportMalariaFiltered.json"]
+#                                                           )
+#         self.sweep_variables = sweep_variables or ["admin_name", "Run_Number"]
+#         if channels is None:
+#             self.channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment', 'Received_Vaccine']
+#         else:
+#             self.channels = channels
+#         self.inset_channels = ['Statistical Population', 'New Clinical Cases', 'New Severe Cases', 'PfHRP2 Prevalence']
+#         self.expt_name = expt_name
+#         self.start_year = start_year
+#         self.end_year = end_year
+#
+#     # added to bypass failed cases
+#     # def filter(self, simulation):
+#     #     return simulation.status.name == 'Succeeded'
+#
+#     def map(self, data, simulation):
+#
+#         channels_in_expt = [x for x in self.channels if x in data[self.filenames[0]]['Channels'].keys()]
+#         simdata = pd.DataFrame({x: data[self.filenames[0]]['Channels'][x]['Data'] for x in channels_in_expt})
+#         simdata['Time'] = simdata.index
+#
+#         d = pd.DataFrame({x: data[self.filenames[1]]['Channels'][x]['Data'] for x in self.inset_channels})
+#         d['Time'] = d.index
+#
+#         if len(channels_in_expt) > 0:
+#             simdata = pd.merge(left=simdata, right=d, on='Time')
+#         else:
+#             simdata = d
+#         for missing_channel in [x for x in self.channels if x not in channels_in_expt]:
+#             simdata[missing_channel] = 0
+#
+#         simdata['Day'] = simdata['Time'] % 365
+#         simdata['month'] = simdata['Day'].apply(lambda x: self.monthparser((x + 1) % 365))
+#         simdata['year'] = simdata['Time'].apply(lambda x: int(x / 365) + self.start_year)
+#
+#         for sweep_var in self.sweep_variables:
+#             if sweep_var in simulation.tags.keys():
+#                 simdata[sweep_var] = simulation.tags[sweep_var]
+#         return simdata
+#
+#     def reduce(self, all_data):
+#
+#         selected = [data for sim, data in all_data.items()]
+#         if len(selected) == 0:
+#             print("No data have been returned... Exiting...")
+#             return
+#
+#         if not os.path.exists(os.path.join(self.working_dir, self.expt_name)):
+#             os.mkdir(os.path.join(self.working_dir, self.expt_name))
+#
+#         adf = pd.concat(selected).reset_index(drop=True)
+#         adf['date'] = adf.apply(lambda x: datetime.date(x['year'], x['month'], 1), axis=1)
+#
+#         sum_channels = self.channels + ['New Clinical Cases', 'New Severe Cases']
+#         mean_channels = ['Statistical Population', 'PfHRP2 Prevalence']
+#
+#         df = adf.groupby(['admin_name', 'date', 'year', 'month', 'Run_Number'])[sum_channels].agg(np.sum).reset_index()
+#         pdf = adf.groupby(['admin_name', 'date', 'year', 'month', 'Run_Number'])[mean_channels].agg(np.mean).reset_index()
+#
+#         merged_df = pd.merge(left=pdf, right=df, on=['admin_name', 'date', 'year', 'month', 'Run_Number'])
+#
+#         # fix any excess treated cases
+#         merged_df['excess_severe_treat'] = merged_df['Received_Severe_Treatment'] - merged_df['New Severe Cases']
+#
+#         for (rn, admin_name), rdf in merged_df.groupby(['Run_Number', 'admin_name']):
+#             for r, row in rdf.iterrows():
+#                 if row['excess_severe_treat'] < 1:
+#                     continue
+#                 # fix first month of sim of excess treated severe cases
+#                 if row['year'] == self.start_year and row['month'] == 1:
+#                     merged_df.loc[(merged_df['year'] == self.start_year) & (merged_df['month'] == 1) & (
+#                             merged_df['Run_Number'] == rn) & (merged_df['admin_name'] == admin_name),
+#                                   'Received_Severe_Treatment'] = np.sum(
+#                         merged_df[(merged_df['year'] == self.start_year) &
+#                                   (merged_df['month'] == 1) &
+#                                   (merged_df['Run_Number'] == rn) &
+#                                   (merged_df['admin_name'] == admin_name)]['New Severe Cases'])
+#                 else:
+#                     # figure out which is previous month
+#                     newyear = row['year']
+#                     newmonth = row['month'] - 1
+#                     if newmonth < 1:
+#                         newyear -= 1
+#                     excess = row['excess_severe_treat']
+#                     merged_df.loc[(merged_df['year'] == self.start_year) & (merged_df['month'] == 1) & (
+#                             merged_df['Run_Number'] == rn) & (merged_df['admin_name'] == admin_name), 'Received_Severe_Treatment'] = \
+#                         merged_df.loc[(merged_df['year'] == self.start_year) & (merged_df['month'] == 1) & (
+#                                 merged_df['Run_Number'] == rn) & (merged_df['admin_name'] == admin_name),
+#                                       'Received_Severe_Treatment'] - excess
+#                     merged_df.loc[(merged_df['year'] == self.start_year) & (merged_df['month'] == 1) & (
+#                             merged_df['Run_Number'] == rn) & (merged_df['admin_name'] == admin_name), 'Received_Severe_Treatment'] = \
+#                         merged_df.loc[(merged_df['year'] == self.start_year) & (merged_df['month'] == 1) & (
+#                                 merged_df['Run_Number'] == rn) & (merged_df['admin_name'] == admin_name),
+#                                       'Received_Severe_Treatment'] + excess
+#         merged_df['excess_severe_treat'] = merged_df['Received_Severe_Treatment'] -  merged_df['New Severe Cases']
+#         merged_df.loc[
+#             merged_df['excess_severe_treat'] > 0.5, 'Received_Severe_Treatment'] = \
+#             merged_df.loc[merged_df['excess_severe_treat'] > 0.5, 'New Severe Cases']
+#
+#         # del merged_df['New Severe Cases']
+#         # del merged_df['excess_severe_treat']
+#
+#         output_dir = os.path.join(self.working_dir, self.expt_name)
+#         os.makedirs(output_dir, exist_ok=True)
+#         merged_df.to_csv(os.path.join(self.working_dir, self.expt_name, 'All_Age_monthly_Cases_withSevereTreat.csv'), index=False)
+
+
 
 
 class monthlySevereTreatedByAgeAnalyzer(IAnalyzer):
