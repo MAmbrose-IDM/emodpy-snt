@@ -1011,75 +1011,79 @@ get_burden_timeseries_by_lga = function(exp_filepath, exp_name, pop_filepath, ov
 }
 
 
-#' # PROBLEM: need to fix how U5 values are calculated to use simulated population U5 sizes instead of full population sizes rescaled
-#' get_burden_timeseries_by_state = function(exp_filepath, exp_name, pop_filepath, overwrite_files=FALSE){
-#'   #'  @description subset simulation output to appropriate admin and time period, and calculate annual mean burden (for a set of malaria burden metric) across all runs
-#'   #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum burden value across seeds, and also a column for the scenario name
-#'   # Assumes malariaBurden_withAdjustments.csv contains the following burden colnames: c('PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U5_mean', 'total_mortality_mean')    
-#'   
-#'   # check whether file already exists, otherwise create new dataframe
-#'   output_filename = paste0(exp_filepath, '/timeseries_burden_annual_by_state.csv')
-#'   if(file.exists(output_filename) & !overwrite_files){
-#'     cur_sim_output_agg = read.csv(output_filename)
-#'   } else{
-#'     # read in information about LGAs
-#'     admin_info = read.csv(pop_filepath)
-#'     admin_info = admin_info[,c('admin_name','pop_size','State')]
-#'     
-#'     # read in simulation information, subset to appropriate years
-#'     cur_sim_output = fread(paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
-#' 
-#'     # merge to get real-world population sizes in each admin and the State each admin belongs to
-#'     cur_sim_output = merge(cur_sim_output, admin_info, by='admin_name')
-#'     # get simulation population denominator and the real-world population size in each admin
-#'     cur_sim_output$true_population_U5 = cur_sim_output$pop_size * cur_sim_output$Pop_U5 / cur_sim_output$Statistical_Population
-#'     cur_sim_output$true_population_all = cur_sim_output$pop_size
-#'     
-#'     # process simulation output to get total numbers in each state:
-#'     #  - get total numbers in each admin, scaled to appropriate LGA population size from simulation population size
-#'     #  - subset to relevant columns
-#'     #  - get total within each state-year-Run (across months and LGAs)
-#'     cur_sim_output_a = cur_sim_output %>% mutate(
-#'         positives_U5 = PfPR_U5 * true_population_U5,
-#'         positives_all = PfPR_MiP_adjusted * true_population_all,
-#'         num_cases_U5 = New_clinical_cases_U5 / Pop_U5 * true_population_U5, 
-#'         num_cases_all = New_Clinical_Cases / Statistical_Population * true_population_all,
-#'         num_direct_mortality_U5 = direct_mortality_nonMiP_U5_mean / Pop_U5 * true_population_U5, 
-#'         num_direct_mortality_all = direct_mortality_nonMiP_mean / Statistical_Population * true_population_all,
-#'         num_total_mortality_U5 = total_mortality_U5_mean / Pop_U5 * true_population_U5, 
-#'         num_total_mortality_all = total_mortality_mean / Statistical_Population * true_population_all
-#'       ) %>% 
-#'       dplyr::select(Run_Number, State, year, true_population_U5, true_population_all, positives_U5, positives_all, num_cases_U5, num_cases_all, num_direct_mortality_U5, num_direct_mortality_all, num_total_mortality_U5, num_total_mortality_all) %>%
-#'       group_by(Run_Number, State, year) %>%
-#'       summarise_all(sum) %>%
-#'       ungroup() %>% 
-#'       mutate(  # take average population over 12 months rather than sum of population sizes in each month
-#'         true_population_U5 = true_population_U5 / 12,
-#'         true_population_all = true_population_all / 12
-#'       )
-#'     # process simulation output to get per-capita values and average across runs:
-#'     #  - get per-capita or rate values
-#'     #  - find average across runs
-#'     cur_sim_output_agg = cur_sim_output_a %>% mutate(
-#'       PfPR_U5 = positives_U5 / true_population_U5 / 12,  # divide by number of months in year to get population-weighted average prevalence across all months rather than sum of positives across months
-#'       PfPR_all = positives_all / true_population_all / 12,
-#'       incidence_pp_U5 = num_cases_U5 / true_population_U5, 
-#'       incidence_pp_all = num_cases_all / true_population_all,
-#'       direct_mortality_pp_U5 = num_direct_mortality_U5 / true_population_U5, 
-#'       direct_mortality_pp_all = num_direct_mortality_all / true_population_all,
-#'       total_mortality_pp_U5 = num_total_mortality_U5 / true_population_U5, 
-#'       total_mortality_pp_all = num_total_mortality_all / true_population_all
-#'       ) %>%
-#'       group_by(State, year) %>%
-#'       summarise_all(mean) %>%
-#'       ungroup()
-#'       
-#'     # save result
-#'     cur_sim_output_agg$scenario = exp_name
-#'     write.csv(cur_sim_output_agg, output_filename, row.names=FALSE)
-#'   }
-#'   return(cur_sim_output_agg)
-#' }
+
+
+
+get_burden_timeseries_by_state = function(exp_filepath, exp_name, pop_filepath, overwrite_files=FALSE){
+  #'  @description subset simulation output to appropriate admin and time period, and calculate annual mean burden (for a set of malaria burden metric) across all runs
+  #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum burden value across seeds, and also a column for the scenario name
+  # Assumes malariaBurden_withAdjustments.csv contains the following burden colnames: c('PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U5_mean', 'total_mortality_mean')
+
+  # check whether file already exists, otherwise create new dataframe
+  output_filename = paste0(exp_filepath, '/timeseries_burden_annual_by_state.csv')
+  if(file.exists(output_filename) & !overwrite_files){
+    cur_sim_output_agg = read.csv(output_filename)
+  } else{
+    # read in information about LGAs
+    admin_info = read.csv(pop_filepath)
+    admin_info = admin_info[,c('admin_name','pop_size','State')]
+
+    # read in simulation information, subset to appropriate years
+    cur_sim_output = fread(paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
+
+    # merge to get real-world population sizes in each admin and the State each admin belongs to
+    cur_sim_output = merge(cur_sim_output, admin_info, by='admin_name')
+    # get simulation population denominator and the real-world population size in each admin
+    cur_sim_output$true_population_U5 = cur_sim_output$pop_size * cur_sim_output$Pop_U5 / cur_sim_output$Statistical_Population
+    cur_sim_output$true_population_all = cur_sim_output$pop_size
+
+    # process simulation output to get total numbers in each state:
+    #  - get total numbers in each admin, scaled to appropriate LGA population size from simulation population size
+    #  - subset to relevant columns
+    #  - get total within each state-year-Run (across months and LGAs)
+    cur_sim_output_a = cur_sim_output %>% mutate(
+        positives_U5 = PfPR_U5 * true_population_U5,
+        positives_all = PfPR_MiP_adjusted * true_population_all,
+        num_cases_U5 = New_clinical_cases_U5 / Pop_U5 * true_population_U5,
+        num_cases_all = New_Clinical_Cases / Statistical_Population * true_population_all,
+        num_direct_mortality_U5 = direct_mortality_nonMiP_U5_mean / Pop_U5 * true_population_U5,
+        num_direct_mortality_all = direct_mortality_nonMiP_mean / Statistical_Population * true_population_all,
+        num_total_mortality_U5 = total_mortality_U5_mean / Pop_U5 * true_population_U5,
+        num_total_mortality_all = total_mortality_mean / Statistical_Population * true_population_all
+      ) %>%
+      dplyr::select(Run_Number, State, year, true_population_U5, true_population_all, positives_U5, positives_all, num_cases_U5, num_cases_all, num_direct_mortality_U5, num_direct_mortality_all, num_total_mortality_U5, num_total_mortality_all) %>%
+      group_by(Run_Number, State, year) %>%
+      summarise_all(sum) %>%
+      ungroup() %>%
+      mutate(  # take average population over 12 months rather than sum over all months
+        true_population_U5 = true_population_U5 / 12,
+        true_population_all = true_population_all / 12
+      )
+    # process simulation output to get per-capita values and average across runs:
+    #  - get per-capita or rate values
+    #  - find average across runs
+    cur_sim_output_agg = cur_sim_output_a %>% mutate(
+      PfPR_U5 = positives_U5 / true_population_U5 / 12,  # divide by number of months in year to get population-weighted average prevalence across all months rather than sum of positives across months
+      PfPR_all = positives_all / true_population_all / 12,
+      incidence_pp_U5 = num_cases_U5 / true_population_U5,
+      incidence_pp_all = num_cases_all / true_population_all,
+      direct_mortality_pp_U5 = num_direct_mortality_U5 / true_population_U5,
+      direct_mortality_pp_all = num_direct_mortality_all / true_population_all,
+      total_mortality_pp_U5 = num_total_mortality_U5 / true_population_U5,
+      total_mortality_pp_all = num_total_mortality_all / true_population_all
+      ) %>%
+      group_by(State, year) %>%
+      summarise_all(mean) %>%
+      ungroup()
+
+    # save result
+    cur_sim_output_agg$scenario = exp_name
+    write.csv(cur_sim_output_agg, output_filename, row.names=FALSE)
+  }
+  return(cur_sim_output_agg)
+}
+
+
 
 
 # ----- LLIN, IRS, vaccine, PMC intervention coverage by state ----- #
@@ -1381,3 +1385,75 @@ get_cm_timeseries_exp = function(cm_filepath, pop_sizes, end_year, exp_name, cur
 }
 
 
+
+
+
+
+
+
+# calculate average burden over specified timeperiod for each state
+get_ave_burden_by_state = function(sim_future_output_dir, pop_filepath,
+                                   barplot_start_year, barplot_end_year, 
+                                   pyr, chw_cov,
+                                   scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, 
+                                   burden_metric_subset=c(), include_to_present=TRUE, file_suffix=''){
+  
+  admin_pop = read.csv(pop_filepath)
+  
+  # burden metrics
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
+  # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
+  if((length(burden_metric_subset)>=1)){
+    burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
+    burden_colnames = burden_colnames[burden_metrics_subset_indices]
+    burden_metric_names = burden_metric_names[burden_metrics_subset_indices]
+  }
+  
+  # if first experiment name is to-present, skip it
+  if(include_to_present){
+    exp_start_index = 2
+  } else{
+    exp_start_index = 1
+  }
+  # iterate through scenarios, calculating the burden for all metrics. Combine all scenarios into a dataframe (each scenario set in separate rows)
+  burden_all_df = data.frame()
+  for(ss in exp_start_index:length(scenario_names)){
+    scenario_name_cur = scenario_names[ss]
+    burden_df = get_cumulative_burden_by_state(sim_output_filepath=sim_future_output_dir, experiment_name=scenario_name_cur, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+    burden_df$scenario = scenario_name_cur
+                                             
+    # only save relevant columns for plotting
+    burden_df = burden_df[,which(colnames(burden_df) %in% c('scenario', 'Run_Number', 'State', burden_colnames))]
+    if(nrow(burden_all_df) == 0){
+      burden_all_df = burden_df
+    }else{
+      burden_all_df = rbind(burden_all_df, burden_df)
+    }
+  }
+  
+  # get factors in the correct order (rather than alphabetical)
+  burden_all_df$scenario = factor(burden_all_df$scenario, levels=scenario_names[exp_start_index:length(scenario_names)])
+  
+  # get average across runs
+  burden_average_df = burden_all_df %>% group_by(State, scenario) %>%
+    summarise_all(mean, na.rm=TRUE)
+    
+  write.csv(burden_average_df, paste0(sim_future_output_dir, '/_plots/','average_burden_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'.csv'), row.names=FALSE)
+  
+  # if the burden metrics include PfPR, create separate table with states as rows and scenarios as columns
+  if('average_PfPR_all' %in% colnames(burden_all_df)){
+    pfpr_df = burden_average_df %>% dplyr::select(State, scenario, average_PfPR_all) %>%
+      mutate(average_PfPR_all = round(average_PfPR_all,2)) %>%
+      pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_all)
+    write.csv(pfpr_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_allAge_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'.csv'), row.names=FALSE)
+  }
+  if('average_PfPR_U5' %in% colnames(burden_all_df)){
+    pfpr_df = burden_average_df %>% dplyr::select(State, scenario, average_PfPR_U5) %>%
+      mutate(average_PfPR_U5 = round(average_PfPR_U5,2)) %>%
+      pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_U5)
+    write.csv(pfpr_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_U5_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'.csv'), row.names=FALSE)
+  }
+
+}
