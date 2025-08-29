@@ -293,7 +293,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
   
   if(save_timeseries_coverage_plots){
     
-    # plot timeseries of ITN coverage from mass distributions in each LGA given distribution schedule and net decay parameters
+    # plot timeseries of ITN coverage from mass distributions in each LGA given distribution schedule, seasonality in ITN use, and net decay parameters
     # also include dots for DHS observations
     # data format: a long dataframe with columns for LGA name, state name, archetype name, date, and coverage
     net_dhs_info$State = net_dhs_info$NOMREGION
