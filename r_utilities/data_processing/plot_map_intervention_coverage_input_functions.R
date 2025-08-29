@@ -11,6 +11,7 @@ library(sf)
 library(reshape2)
 library(pals)
 library(prettyGraphs)
+library(cowplot)
 
 
 
@@ -89,6 +90,7 @@ create_coverage_input_maps = function(inter_input, inter_years, output_filename,
 
 
 
+
 # function to create and save maps of intervention coverages
 create_maps_state_groups = function(admin_shapefile_filepath, shapefile_admin_colname, admin_group_df, column_name, output_filename, colorscale){
   admin_shapefile = shapefile(admin_shapefile_filepath)
@@ -107,4 +109,31 @@ create_maps_state_groups = function(admin_shapefile_filepath, shapefile_admin_co
     theme(plot.title = element_text(hjust = 0.5)) 
 
   ggsave(output_filename, gg, width = (2)*1.8, height=2.3, units='in', dpi=800)
+}
+
+
+
+
+
+# function to create and save maps of intervention coverages
+create_full_legend_maps = function(output_filename, colorscale, min_value, max_value, num_colors){
+  # specify the breaks and colors for the legends
+  bin_breaks = round(seq(min_value, max_value, length.out = num_colors + 1), 2)
+  bin_labels = paste0("(", head(bin_breaks, -1), ",", tail(bin_breaks, -1), "]")
+  
+  legend_df = data.frame(
+    binned_values = factor(bin_labels, levels = bin_labels)
+  )
+  
+  legend_plot = ggplot(legend_df, aes(x=1, y=binned_values, fill=binned_values)) +
+      geom_tile() + 
+      scale_fill_manual(values=setNames(colorscale, bin_labels), limits=bin_labels, drop=FALSE, name='coverage', na.value='grey96') + 
+      guides(fill = guide_legend(reverse=T)) +
+      theme_void() +
+      theme(legend.position='right') 
+
+  legend_only = get_legend(legend_plot)
+  
+  # ggsave(output_filename, legend_plot, width = (1)*1.8, height=2.7, units='in', dpi=800)
+  ggsave(output_filename, legend_only, width = 1.8*0.7, height=2.7*1, units='in', dpi=800)
 }
