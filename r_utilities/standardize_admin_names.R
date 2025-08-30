@@ -198,7 +198,7 @@ standardize_admin_names_in_df = function(target_names_df, origin_names_df, targe
   
   # check whether any of the un-matched names are duplicates across states if not all names have been matched yet
   if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
-    if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(target_names_df))){
+    if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(origin_names_df))){
       origin_names_df = add_number_identification(target_names_df=target_names_df, origin_names_df=origin_names_df, additional_id_col=additional_id_col, possible_suffixes=possible_suffixes)
     }
   }
