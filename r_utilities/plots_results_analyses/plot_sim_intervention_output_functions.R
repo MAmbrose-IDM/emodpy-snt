@@ -154,7 +154,7 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     } else{
       g_vacc = ggplot(inter_use_df, aes(x=year, y=vacc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('Vaccines (primary series + booster) per person')) + 
