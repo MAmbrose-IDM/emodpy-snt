@@ -116,7 +116,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('Effective treatment rate (U5)')) + 
@@ -131,7 +131,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
       gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
         geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
         scale_fill_manual(values = scenario_palette) + 
-        geom_line(size=1) + 
+        geom_line(linewidth=1) + 
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('Effective treatment rate (U5)')) + 
@@ -225,7 +225,7 @@ plot_state_grid_itn_anc = function(sim_future_output_dir, pop_filepath, grid_lay
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.5) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.5) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('ANC ITN coverage')) + 
@@ -240,7 +240,7 @@ plot_state_grid_itn_anc = function(sim_future_output_dir, pop_filepath, grid_lay
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('ANC ITN coverage')) + 
@@ -335,7 +335,7 @@ plot_state_grid_itn_epi = function(sim_future_output_dir, pop_filepath, grid_lay
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('EPI ITN coverage')) + 
@@ -350,7 +350,7 @@ plot_state_grid_itn_epi = function(sim_future_output_dir, pop_filepath, grid_lay
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('EPI ITN coverage')) + 
@@ -449,7 +449,7 @@ plot_state_grid_smc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-        geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+        geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('SMC coverage (U5)')) + 
@@ -464,7 +464,7 @@ plot_state_grid_smc = function(sim_future_output_dir, pop_filepath, grid_layout_
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
         # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
         # scale_fill_manual(values = scenario_palette) + 
-        geom_line(size=1) + 
+        geom_line(linewidth=1) + 
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('SMC coverage (U5)')) + 
@@ -562,7 +562,7 @@ plot_state_grid_itn = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('ITN initial use rate (U5)')) + 
@@ -577,7 +577,7 @@ plot_state_grid_itn = function(sim_future_output_dir, pop_filepath, grid_layout_
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       # scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('ITN initial use rate (U5)')) + 
@@ -678,7 +678,7 @@ plot_state_grid_vacc = function(sim_future_output_dir, pop_filepath, grid_layout
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('EPI malaria vaccine coverage')) + 
@@ -693,7 +693,7 @@ plot_state_grid_vacc = function(sim_future_output_dir, pop_filepath, grid_layout
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       # scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('EPI malaria vaccine coverage')) + 
@@ -793,7 +793,7 @@ plot_state_grid_pmc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
-      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), size=0.8) + 
+      geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('PMC coverage')) + 
@@ -808,7 +808,7 @@ plot_state_grid_pmc = function(sim_future_output_dir, pop_filepath, grid_layout_
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       # scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('PMC coverage')) + 
