@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import pandas as pd
+from idmtools.core import ItemType
 from idmtools.core.platform_factory import Platform
 from idmtools.entities import Suite
 from snt.load_paths import load_box_paths
@@ -109,6 +110,8 @@ def main():
     platform = Platform("CALCULON")
     # Create a new suite in COMPS.
     suite = create_suite(platform, experiment_type)
+    # To use existing suite,comment out above line and uncomment following line
+    #suite = platform.get_item("your suite_id", item_type=ItemType.SUITE)
     suite_id, suite_name = str(suite.id), suite.name
     print(f"\nThe created suite can be viewed at {platform.endpoint}/#explore/"
                              f"Suites?filters=Id={suite_id}\n")
