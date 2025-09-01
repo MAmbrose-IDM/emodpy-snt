@@ -182,9 +182,21 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
       # also increase probability of getting 3 IPTp doses (given >=1 dose) 30% and split remaining probability evenly between 1 and 2 doses
       new_three_dose_fraction = min(1,iptp_dose_number[3,dim(iptp_dose_number)[2]] + 0.3)
       project_dose_number = c((1-new_three_dose_fraction)/2, (1-new_three_dose_fraction)/2, new_three_dose_fraction)
+    } else if(coverage_string =='increase_to_50'){
+      # increase probability of getting at least one IPTp up to 50%, unless already over 50%
+      project_coverage =  sapply(iptp_coverage_df[,dim(iptp_coverage_df)[2]], max, 0.5)
+      # also increase probability of getting 3 IPTp doses (given >=1 dose) 20% and split remaining probability evenly between 1 and 2 doses
+      new_three_dose_fraction = min(1,iptp_dose_number[3,dim(iptp_dose_number)[2]] + 0.2)
+      project_dose_number = c((1-new_three_dose_fraction)/2, (1-new_three_dose_fraction)/2, new_three_dose_fraction)
     } else if(coverage_string =='increase_to_60'){
       # increase probability of getting at least one IPTp up to 60%, unless already over 60%
       project_coverage =  sapply(iptp_coverage_df[,dim(iptp_coverage_df)[2]], max, 0.6)
+      # also increase probability of getting 3 IPTp doses (given >=1 dose) 20% and split remaining probability evenly between 1 and 2 doses
+      new_three_dose_fraction = min(1,iptp_dose_number[3,dim(iptp_dose_number)[2]] + 0.2)
+      project_dose_number = c((1-new_three_dose_fraction)/2, (1-new_three_dose_fraction)/2, new_three_dose_fraction)
+    } else if(coverage_string =='increase_to_70'){
+      # increase probability of getting at least one IPTp up to 70%, unless already over 70%
+      project_coverage =  sapply(iptp_coverage_df[,dim(iptp_coverage_df)[2]], max, 0.7)
       # also increase probability of getting 3 IPTp doses (given >=1 dose) 20% and split remaining probability evenly between 1 and 2 doses
       new_three_dose_fraction = min(1,iptp_dose_number[3,dim(iptp_dose_number)[2]] + 0.2)
       project_dose_number = c((1-new_three_dose_fraction)/2, (1-new_three_dose_fraction)/2, new_three_dose_fraction)

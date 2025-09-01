@@ -80,6 +80,9 @@ get_iptp_doses_from_dhs = function(hbhi_dir, dta_dir, years, sim_start_year, las
       iptp_doses_all_years[i_dose, ] = mean_dose_dist[i_dose]
       # iptp_doses_all_years[i_dose, ] = store_iptp_fractions[i_dose,dim(store_iptp_fractions)[2]]  # old version using values from final year instead of average
     }
+    # label rows and columns of matrix
+    colnames(iptp_doses_all_years) = sim_start_year:last_sim_year
+    rownames(iptp_doses_all_years) = c('1 dose', '2 doses', '3 doses')
     write.csv(iptp_doses_all_years, paste(hbhi_dir,'/simulation_inputs/IPTp/estimated_past_num_doses.csv', sep=''))
   }
  

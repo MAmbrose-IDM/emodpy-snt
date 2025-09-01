@@ -197,24 +197,22 @@ def update_smc_access_ips(campaign, hfca, smc_df, use_same_access_ips_all_ages=F
                                                  new_ip_key='SMCAccess', new_ip_value="High",
                                                  target_age_min=0, target_age_max=5)
 
-            # before the first SMC round in each year, change the SMCAccess IP for the U5 and O5 age groups
-            # simdays of the first rounds (change IPs one week before)
-            first_round_days = df.loc[df['round'] == 1, 'simday'].values
-            change_IP_days = [first_round_days[yy] - 7 for yy in range(len(first_round_days))]
+            # the week before the first SMC round in each year, change the SMCAccess IP for the U5 and O5 age groups
+            first_round_df = df[df["round"] == 1]
+            for idx, row in first_round_df.iterrows():
+                change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7), coverage=1,
+                                                     new_ip_key='SMCAccess', new_ip_value="Low",
+                                                     target_age_min=0, target_age_max=5)
+                change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7), coverage=row['high_access_U5'],
+                                                     new_ip_key='SMCAccess', new_ip_value="High",
+                                                     target_age_min=0, target_age_max=5)
+                change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7), coverage=1,
+                                                     new_ip_key='SMCAccess', new_ip_value="Low",
+                                                     target_age_min=5, target_age_max=120)
+                change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7), coverage=row['high_access_5_10'],
+                                                     new_ip_key='SMCAccess', new_ip_value="High",
+                                                     target_age_min=5, target_age_max=120)
 
-            for rr in change_IP_days:
-                change_individual_property_scheduled(campaign, start_day=rr, coverage=1,
-                                                     new_ip_key='SMCAccess', new_ip_value="Low",
-                                                     target_age_min=0, target_age_max=5)
-                change_individual_property_scheduled(campaign, start_day=rr, coverage=df['high_access_U5'].values[0],
-                                                     new_ip_key='SMCAccess', new_ip_value="High",
-                                                     target_age_min=0, target_age_max=5)
-                change_individual_property_scheduled(campaign, start_day=rr, coverage=1,
-                                                     new_ip_key='SMCAccess', new_ip_value="Low",
-                                                     target_age_min=5, target_age_max=120)
-                change_individual_property_scheduled(campaign, start_day=rr, coverage=df['high_access_5_10'].values[0],
-                                                     new_ip_key='SMCAccess', new_ip_value="High",
-                                                     target_age_min=5, target_age_max=120)
     return {'admin_name': hfca}
 
 

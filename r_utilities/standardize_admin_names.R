@@ -145,13 +145,15 @@ create_reference_name_match = function(lga_name){
 
 
 add_number_identification = function(target_names_df, origin_names_df, additional_id_col='State', possible_suffixes=c(1,2,3)){
-  if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(target_names_df))){
+  if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(origin_names_df))){
     matching_pattern = paste0("(", paste(possible_suffixes, collapse = "|"), ")$")
+    target_names_df$additional_id_col_standardized = toupper(target_names_df[[additional_id_col]])
+    origin_names_df$additional_id_col_standardized = toupper(origin_names_df[[additional_id_col]])
     
     # add column to target_names dataframe with the matching name without the suffix, then merge the dataframes
     target_names_df$name_no_suffix = sub(matching_pattern, "", target_names_df$matched_name)
     binding_df = target_names_df %>% rename(name_with_suffix = matched_name, matched_name = name_no_suffix) %>%
-      dplyr::select(name_with_suffix, matched_name, !!sym(additional_id_col))
+      dplyr::select(name_with_suffix, matched_name, additional_id_col_standardized)  #!!sym(additional_id_col))
     origin_names_df = merge(origin_names_df, binding_df, all.x=TRUE)
     origin_names_df$matched_name[!is.na(origin_names_df$name_with_suffix)] = origin_names_df$name_with_suffix[!is.na(origin_names_df$name_with_suffix)]
     
@@ -196,7 +198,7 @@ standardize_admin_names_in_df = function(target_names_df, origin_names_df, targe
   
   # check whether any of the un-matched names are duplicates across states if not all names have been matched yet
   if(!all(origin_names_df$matched_name %in% target_names_df$matched_name)){
-    if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(target_names_df))){
+    if((additional_id_col %in% colnames(target_names_df)) & (additional_id_col %in% colnames(origin_names_df))){
       origin_names_df = add_number_identification(target_names_df=target_names_df, origin_names_df=origin_names_df, additional_id_col=additional_id_col, possible_suffixes=possible_suffixes)
     }
   }

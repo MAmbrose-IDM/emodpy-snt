@@ -21,9 +21,9 @@ def load_box_paths(user_path=None, country_name='Example'):
         # home_path = os.path.join(user_path, 'Dropbox (IDM)', 'NU_collaboration')
         # data_path = os.path.join(home_path, 'hbhi_nigeria', 'snt_2022')
         # project_path = os.path.join(home_path, 'hbhi_nigeria', 'snt_2022')
-        home_path = os.path.join(user_path, 'IDM Dropbox', 'Malaria Team Folder', 'projects', 'snt')
-        data_path = os.path.join(home_path, 'Nigeria', 'snt_2024')
-        project_path = os.path.join(home_path, 'Nigeria', 'snt_2024')
+        home_path = os.path.join(user_path, 'Gates Foundation Dropbox', 'Malaria Team Folder', 'projects', 'snt')
+        data_path = os.path.join(home_path, 'Nigeria', 'snt_2025')
+        project_path = os.path.join(home_path, 'Nigeria', 'snt_2025')
     return data_path, project_path
 
 

@@ -34,9 +34,9 @@ plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, di
   admin_pop = read.csv(pop_filepath)
   
   # burden metrics
-  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
-  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
-  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
   # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
   if((length(burden_metric_subset)>=1)){
     burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
@@ -153,9 +153,9 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
   admin_pop = read.csv(pop_filepath)
   
   # burden metrics
-  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
-  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
-  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
   # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
   if((length(burden_metric_subset)>=1)){
     burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
@@ -214,7 +214,8 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
     gg = ggplot(rel_burden_agg) + 
       geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
       scale_y_continuous(labels=percent_format(), n.breaks=4) + #,limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
-      ylab('Percent reduction in burden \n ((Baseline - Plan) / Baseline) * 100') + 
+      # ylab('Percent reduction in burden \n ((Baseline - Plan) / Baseline) * 100') + 
+      ylab(paste0('Percent reduction in ', burden_metric_name)) + 
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
       scale_fill_manual(values = scenario_palette) + 
@@ -247,9 +248,9 @@ plot_difference_burden_barplots = function(sim_future_output_dir, pop_filepath, 
   admin_pop = read.csv(pop_filepath)
   
   # burden metrics
-  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
-  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
-  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+  burden_colnames = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
   # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
   if((length(burden_metric_subset)>=1)){
     burden_metrics_subset_indices = which(burden_metrics %in% burden_metric_subset)
@@ -387,9 +388,9 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
         burden_metric_names = c('PfPR (U5)', 'incidence (U5)', 'direct mortality (U5)', 'mortality (U5)')
         relative_burden_df = get_relative_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
       }else{
-        burden_metrics = c(burden_metrics, 'mLBW_deaths', 'MiP_stillbirths')
-        burden_colnames = c('average_PfPR_all', 'incidence_all', 'direct_death_rate_mean_all', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
-        burden_metric_names = c('PfPR (all ages)', 'incidence (all ages)', 'direct mortality (all ages)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+        burden_metrics = c(burden_metrics)#, 'mLBW_deaths', 'MiP_stillbirths')
+        burden_colnames = c('average_PfPR_all', 'incidence_all', 'direct_death_rate_mean_all', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+        burden_metric_names = c('PfPR (all ages)', 'incidence (all ages)', 'direct mortality (all ages)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
         relative_burden_df = get_relative_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
       }
       
@@ -528,9 +529,9 @@ table_difference_impact_specific_intervention = function(sim_future_output_dir, 
         burden_metric_names = c('PfPR (U5)', 'incidence (U5)', 'direct mortality (U5)', 'mortality (U5)')
         relative_burden_df = get_difference_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
       }else{
-        burden_metrics = c(burden_metrics, 'mLBW_deaths', 'MiP_stillbirths')
-        burden_colnames = c('average_PfPR_all', 'incidence_all', 'direct_death_rate_mean_all', 'all_death_rate_mean_all', 'annual_num_mLBW', 'annual_num_mStill')
-        burden_metric_names = c('PfPR (all ages)', 'incidence (all ages)', 'direct mortality (all ages)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
+        burden_metrics = c(burden_metrics)#, 'mLBW_deaths', 'MiP_stillbirths')
+        burden_colnames = c('average_PfPR_all', 'incidence_all', 'direct_death_rate_mean_all', 'all_death_rate_mean_all')#, 'annual_num_mLBW', 'annual_num_mStill')
+        burden_metric_names = c('PfPR (all ages)', 'incidence (all ages)', 'direct mortality (all ages)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
         relative_burden_df = get_difference_burden(sim_output_filepath=sim_future_output_dir, reference_experiment_name=reference_experiment_name, comparison_experiment_name=comparison_experiment_name, comparison_scenario_name=comparison_scenario_name, start_year=barplot_start_year, end_year=barplot_end_year, admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins, LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
       }
       
@@ -719,13 +720,13 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
   
   
   # ----- malaria burden ----- #
-  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
-  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
-  burden_colnames = c('PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U5_mean', 'total_mortality_mean', 'mLBW_deaths', 'MiP_stillbirths')    
+  burden_metrics = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
+  burden_colnames = c('PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U5_mean', 'total_mortality_mean')#, 'mLBW_deaths', 'MiP_stillbirths')    
   if(include_U1){
-    burden_metrics = c('PfPR', 'PfPR', 'PfPR', 'incidence','incidence', 'incidence', 'directMortality', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'allMortality', 'mLBW_deaths', 'MiP_stillbirths')
-    burden_metric_names = c('PfPR (U1)', 'PfPR (U5)', 'PfPR (all ages)', 'incidence (U1)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U1)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U1)', 'mortality (U5)', 'mortality (all ages)', 'mLBW mortality (births)', 'stillbirths (births)')
-    burden_colnames = c('PfPR_U1', 'PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U1', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U1_mean', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U1_mean', 'total_mortality_U5_mean', 'total_mortality_mean', 'mLBW_deaths', 'MiP_stillbirths')
+    burden_metrics = c('PfPR', 'PfPR', 'PfPR', 'incidence','incidence', 'incidence', 'directMortality', 'directMortality', 'directMortality', 'allMortality', 'allMortality', 'allMortality')#, 'mLBW_deaths', 'MiP_stillbirths')
+    burden_metric_names = c('PfPR (U1)', 'PfPR (U5)', 'PfPR (all ages)', 'incidence (U1)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U1)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U1)', 'mortality (U5)', 'mortality (all ages)')#, 'mLBW mortality (births)', 'stillbirths (births)')
+    burden_colnames = c('PfPR_U1', 'PfPR_U5', 'PfPR_MiP_adjusted', 'New_clinical_cases_U1', 'New_clinical_cases_U5', 'New_Clinical_Cases', 'direct_mortality_nonMiP_U1_mean', 'direct_mortality_nonMiP_U5_mean', 'direct_mortality_nonMiP_mean', 'total_mortality_U1_mean', 'total_mortality_U5_mean', 'total_mortality_mean')#, 'mLBW_deaths', 'MiP_stillbirths')
   }
   # allow subsetting of which burden metrics plotted (based on burden_metric_subset argument)
   if((length(burden_metric_subset)>=1)){
@@ -886,7 +887,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
       gg_list[[bb]] = ggplot(burden_df, aes(x=as.Date(date), y=mean_burden, color=scenario)) +
         geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
         scale_fill_manual(values = rev(scenario_palette)) + 
-        geom_line(size=1) + 
+        geom_line(linewidth=1) + 
         scale_color_manual(values = rev(scenario_palette)) + 
         xlab('date') + 
         ylab(paste0(gsub('\\(births\\)', '', burden_metric_name),ylab_add_component)) + 
@@ -896,7 +897,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
         theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size))
     } else{
       gg_list[[bb]] = ggplot(burden_df, aes(x=year, y=mean_burden, color=scenario, linetype=scenario))  +
-        geom_line(size=1) + 
+        geom_line(linewidth=1) + 
         scale_linetype_manual(values=rev(scenario_linetypes)) +
         scale_color_manual(values = rev(scenario_palette)) + 
         xlab('year') + 
@@ -977,8 +978,8 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
   burden_df_all = burden_df_all[burden_df_all$scenario %in% scenario_names,]
 
   # ----- malaria burden ----- #
-  burden_metrics = c( 'PfPR_U5', 'PfPR_all', 'incidence_pp_U5', 'incidence_pp_all',  'direct_mortality_pp_U5', 'direct_mortality_pp_all',  'total_mortality_pp_U5', 'total_mortality_pp_all')
-  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence per person (U5)', 'incidence per person (all ages)',  'direct mortality per person (U5)','direct mortality per person (all ages)', 'total mortality per person (U5)','total mortality per person (all ages)')
+  burden_metrics = c( 'PfPR_U5', 'PfPR_all', 'incidence_pp_U5', 'incidence_pp_all',  'total_mortality_pp_U5', 'total_mortality_pp_all')  # ,  'direct_mortality_pp_U5', 'direct_mortality_pp_all'
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence per person (U5)', 'incidence per person (all ages)', 'total mortality per person (U5)','total mortality per person (all ages)')  # ,  'direct mortality per person (U5)','direct mortality per person (all ages)'
   
   for(bb in 1:length(burden_metrics)){
     burden_metric = burden_metrics[bb]
@@ -988,47 +989,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
 
     # connect the 'to-present' and 'future-projection' simulations in the plot. Two alternatives for how this is done, controlled by extend_past_timeseries:
     #   - (FALSE) extend the 'future-projection' lines all back to the end of the 'to-present' simulations, which is desirable if the future projection scenarios separate right away
-    #   - (TRUE) extend the end of the 'to-present' line up to the specified point in the 'future-projections' timeseries. This is only desirable if all 'future-projections' are 
-    #            identical up to that point (e.g., 'to-present' simulations only run to 2020 and we are currently in 2023, so 2021-2022 are identical in all 'future projection' scenarios)
-    if('to-present' %in% burden_df$scenario){
-      connect_future_with_past = TRUE
-      similarity_threshold = 0.15
-      if(!is.na(extend_past_timeseries_year) & (extend_past_timeseries_year %in% burden_df$year[burden_df$scenario != 'to-present'])){
-        # check whether the future projections are all nearly identical (minus stochasticity) for the initial year (otherwise, use version that extends future-projection lines back to past)
-        future_df = burden_df[burden_df$scenario != 'to-present',]
-        earliest_future_year = min(future_df$year)
-        # compare_burdens = future_df$mean_burden[future_df$year == earliest_future_year]
-        # if(all(compare_burdens<(compare_burdens[1]*(1+similarity_threshold))) & all(compare_burdens>(compare_burdens[1]*(1-similarity_threshold)))){
-        #   connect_future_with_past = FALSE
-        #   merge_years = earliest_future_year
-        #   if(extend_past_timeseries_year > earliest_future_year){
-        #     # check which years (up to a maximum of extend_past_timeseries_year) should be included in the to-present line
-        #     yy = earliest_future_year + 1
-        #     while(yy <= extend_past_timeseries_year){
-        #       compare_burdens = future_df$mean_burden[future_df$year == (yy)]
-        #       if(all(compare_burdens<(compare_burdens[1]*1.05)) & all(compare_burdens>(compare_burdens[1]*0.95))){
-        #         merge_years = c(merge_years, yy)
-        #         yy = yy+1
-        #       } else{  # as soon as they don't match for a year, stop trying to match any future years
-        #         yy=99999999
-        #       }
-        #     }
-        #   }
-        #   # get the mean value from the 'future-projection' rows so that it can be added to the 'to-present' scenario
-        #   past_from_future_df = future_df[future_df$year %in% merge_years,]
-        #   past_from_future_df_means = past_from_future_df %>% dplyr::select(-scenario) %>% group_by(year) %>%
-        #     summarise_all(mean) %>% ungroup()
-        #   past_from_future_df_means$scenario = 'to-present'
-        #   # delete the old 'future-projection' rows for all but the final of these years
-        #   delete_future_years = merge_years[merge_years != max(merge_years)]
-        #   if(length(delete_future_years)>0) burden_df = burden_df[-which(burden_df$year %in% merge_years),]
-        #   # add the rows to the 'to-present' scenario in the data frame
-        #   burden_df = merge(burden_df, past_from_future_df_means, all=TRUE)
-        # }else{
-          connect_future_with_past = TRUE
-        # }
-      } 
-      if(connect_future_with_past){
+     if('to-present' %in% burden_df$scenario){
         # add the final 'to-present' row to all future simulations for a continuous plot
         to_present_df = burden_df[burden_df$scenario == 'to-present',]
         final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
@@ -1036,7 +997,6 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
           final_to_present_row$scenario = scenario_names[ss]
           burden_df = rbind(burden_df, final_to_present_row)
         }
-      }
     }
     
     
@@ -1087,7 +1047,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
 
     burden_df$code = burden_df$State
     gg = ggplot(burden_df, aes(x=year, y=mean_burden, color=scenario, linetype=scenario))+
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_linetype_manual(values=scenario_linetypes) +
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
@@ -1098,7 +1058,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
 
-      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.7, height=10*0.7, units='in')
+      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.7, height=8.5*0.7, units='in')
   }
   return(gg)
 }
@@ -1346,7 +1306,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_burden = ggplot(burden_df, aes(x=as.Date(date), y=mean_burden, color=scenario)) +
       geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0(burden_metric, ' - ', age_plotted)) + 
@@ -1357,7 +1317,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_burden = ggplot(burden_df, aes(x=year, y=mean_burden, color=scenario)) +
       geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0(burden_metric, ' - ', age_plotted)) + 
@@ -1373,7 +1333,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_net_use = ggplot(net_use_df, aes(x=as.Date(date), y=coverage, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0('LLIN use (all ages)')) + 
@@ -1384,7 +1344,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_net_use = ggplot(net_use_df, aes(x=year, y=coverage, color=scenario)) +
       # geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       # geom_hline(yintercept=0.22, alpha=0.1)+
       # geom_hline(yintercept=0.39, alpha=0.1)+
@@ -1395,7 +1355,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       theme(legend.position = "none", text = element_text(size = text_size))
     
     g_all_inter = ggplot() +
-      geom_line(data=net_use_df, aes(x=year, y=coverage), color=rgb(1,0.6,1), size=1) + 
+      geom_line(data=net_use_df, aes(x=year, y=coverage), color=rgb(1,0.6,1), linewidth=1) + 
       xlab('year') + 
       ylab(paste0('coverage metric')) + 
       coord_cartesian(ylim=c(0,NA))+
@@ -1415,7 +1375,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
   # } else{
   #   g_net_dist = ggplot(net_use_df, aes(x=year, y=new_net_per_cap, color=scenario)) +
   #     geom_point(size=2) + 
-  #     geom_line(alpha=0.2, size=2) +
+  #     geom_line(alpha=0.2, linewidth=2) +
   #     scale_color_manual(values = scenario_palette) + 
   #     xlab('year') + 
   #     ylab(paste0('LLINs distributed per person')) + 
@@ -1438,7 +1398,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       g_vacc = ggplot(net_use_df, aes(x=year, y=vacc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('Vaccines (primary series + booster) per person')) + 
@@ -1447,7 +1407,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         theme(legend.position = "none", text = element_text(size = text_size))
       
       g_all_inter = g_all_inter +
-        geom_line(data=net_use_df, aes(x=year, y=vacc_per_cap), color=rgb(0,0.3,0), size=1)
+        geom_line(data=net_use_df, aes(x=year, y=vacc_per_cap), color=rgb(0,0.3,0), linewidth=1)
         
     }
     inter_plot_list = append(inter_plot_list, list(g_vacc))
@@ -1468,7 +1428,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       g_pmc = ggplot(net_use_df, aes(x=year, y=pmc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('PMC doses per person')) + 
@@ -1477,7 +1437,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         theme(legend.position = "none", text = element_text(size = text_size))
       
       g_all_inter = g_all_inter +
-        geom_line(data=net_use_df, aes(x=year, y=pmc_per_cap), color=rgb(0.0,0.4,1), size=1)
+        geom_line(data=net_use_df, aes(x=year, y=pmc_per_cap), color=rgb(0.0,0.4,1), linewidth=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_pmc))
   }
@@ -1497,7 +1457,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       g_smc = ggplot(net_use_df, aes(x=year, y=smc_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('SMC doses per person')) + 
@@ -1506,7 +1466,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         theme(legend.position = "none", text = element_text(size = text_size))
       
       g_all_inter = g_all_inter +
-        geom_line(data=net_use_df, aes(x=year, y=smc_per_cap), color=rgb(0.0,0.4,1), size=1)
+        geom_line(data=net_use_df, aes(x=year, y=smc_per_cap), color=rgb(0.0,0.4,1), linewidth=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_smc))
   }
@@ -1526,7 +1486,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       g_irs = ggplot(net_use_df, aes(x=year, y=irs_per_cap, color=scenario)) +
         geom_point(size=2) + 
-        geom_line(alpha=0.2, size=2) +
+        geom_line(alpha=0.2, linewidth=2) +
         scale_color_manual(values = scenario_palette) + 
         xlab('year') + 
         ylab(paste0('IRS per person')) + 
@@ -1535,7 +1495,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         theme(legend.position = "none", text = element_text(size = text_size))
       
       g_all_inter = g_all_inter +
-        geom_line(data=net_use_df, aes(x=year, y=irs_per_cap), color=rgb(1,0,1), size=1)
+        geom_line(data=net_use_df, aes(x=year, y=irs_per_cap), color=rgb(1,0,1), linewidth=1)
     }
     inter_plot_list = append(inter_plot_list, list(g_irs))
   }
@@ -1546,7 +1506,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_cm = ggplot(cm_df, aes(x=as.Date(date), y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0('Effective treatment rate (U5)')) + 
@@ -1557,7 +1517,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     g_cm = ggplot(cm_df, aes(x=year, y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('Effective treatment rate (U5)')) + 
@@ -1566,7 +1526,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       theme(legend.position = "none", text = element_text(size = text_size))
     
     g_all_inter = g_all_inter +
-      geom_line(data=cm_df, aes(x=year, y=mean_coverage), color=rgb(0.1,0.9,0.4), size=1)
+      geom_line(data=cm_df, aes(x=year, y=mean_coverage), color=rgb(0.1,0.9,0.4), linewidth=1)
   }
   inter_plot_list = append(inter_plot_list, list(g_cm))
   
@@ -1674,7 +1634,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
     g_cm = ggplot(cm_df, aes(x=as.Date(date), y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('date') + 
       ylab(paste0('Effective treatment rate (U5)')) + 
@@ -1686,7 +1646,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
     g_cm = ggplot(cm_df, aes(x=year, y=mean_coverage, color=scenario)) +
       geom_ribbon(aes(ymin=min_coverage, ymax=max_coverage, fill=scenario), alpha=0.1, color=NA)+
       scale_fill_manual(values = scenario_palette) + 
-      geom_line(size=1) + 
+      geom_line(linewidth=1) + 
       scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(paste0('Effective treatment rate (U5)')) + 

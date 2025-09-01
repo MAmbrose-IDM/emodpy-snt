@@ -58,8 +58,8 @@ class ChannelByMultiYearSeasonCohortInsetAnalyzer(BaseCalibrationAnalyzer):
         simdata = simdata.rename(columns={self.population_channel: 'Trials',
                                           self.comparison_channel: 'Observations'})
 
-        s1 = simdata.groupby('Month')['Trials'].agg(np.mean).reset_index()
-        s2 = simdata.groupby('Month')['Observations'].agg(np.sum).reset_index()
+        s1 = simdata.groupby('Month')['Trials'].agg('mean').reset_index()
+        s2 = simdata.groupby('Month')['Observations'].agg('sum').reset_index()
         simdata = pd.merge(left=s1, right=s2, on='Month')
         simdata = simdata[['Month', 'Trials', 'Observations']]
 
@@ -120,7 +120,7 @@ class ChannelByMultiYearSeasonCohortInsetAnalyzer(BaseCalibrationAnalyzer):
                 ax.plot(plot_df['Month'], plot_df['incidence'], '-', color='r', linewidth=0.5, alpha=0.3)
 
             adf = pd.concat([selected[i].reset_index() for i in selected_index])
-            plot_df = adf.groupby('Month').agg(np.mean).reset_index()
+            plot_df = adf.groupby('Month').agg('mean').reset_index()
             plot_df['incidence'] = plot_df['Observations'] / plot_df['Trials'] * 1000
             ax.plot(plot_df['Month'], plot_df['incidence'], '-o', color='r', label=f'iter {iteration} sample {sample}')
             ax.plot(ref['Month'], ref['incidence'],

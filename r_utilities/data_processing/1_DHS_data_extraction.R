@@ -391,7 +391,7 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
   # iterate through years, creating csvs with cluster-level and admin-level counts and rates for all variables
   ####=========================================================================================================####
   
-  for(yy in 5){#1:length(years)){
+  for(yy in 1:length(years)){
     year = years[yy]
     
     ###############################################
@@ -1000,13 +1000,19 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
     }
 
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # when the number surveyed in a admin1 is lower than the threshold, use the archetype value instead
+    # when the number surveyed in a admin1 is lower than the threshold, use the zone or archetype value instead
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # see if zone information is available, and if not, use archetype
+    if('ZONE' %in% colnames(archetype_info)){
+      grouping_name = 'ZONE'
+    } else{
+      grouping_name = 'Archetype'
+    }
     # archetype level values
-    MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', 'Archetype')]), all=TRUE)
-    include_cols = c(which(names(MIS_shape) %in% c('Archetype')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+    MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', grouping_name)]), all=TRUE)
+    include_cols = c(which(names(MIS_shape) %in% c(grouping_name)), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
     arch_sums = MIS_shape[,include_cols] %>% 
-      group_by(Archetype) %>%
+      group_by(!!sym(grouping_name)) %>%
       summarise_all(sum, na.rm = TRUE)
     for(var in variables){
       if(paste0(var,'_num_true') %in% colnames(arch_sums)){
@@ -1017,8 +1023,8 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
     # for date, take average dates across all clusters in the admin
     if('mean_date' %in% colnames(MIS_shape)){
       MIS_shape$mean_date = as.Date(MIS_shape$mean_date)
-      arch_dates = MIS_shape[,c('Archetype', 'mean_date')] %>% 
-        group_by( Archetype) %>%
+      arch_dates = MIS_shape[,c(grouping_name, 'mean_date')] %>% 
+        group_by(!!sym(grouping_name)) %>%
         summarise_all(mean, na.rm = TRUE)
       arch_sums = merge(arch_sums, arch_dates, all.x=TRUE)
     }
@@ -1027,11 +1033,11 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
       if(paste0(var,'_num_true') %in% colnames(admin_sums)){
         for(i_admin in 1:nrow(admin_sums)){
           if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
-            admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-            admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-            admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+            admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+            admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+            admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
             if('mean_date' %in% colnames(admin_sums) & grepl('itn', var)){
-              admin_sums$mean_date[i_admin] = arch_sums$mean_date[arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+              admin_sums$mean_date[i_admin] = arch_sums$mean_date[arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
             }
           }
         }
@@ -1040,7 +1046,7 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
 
     
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # when the number surveyed in an archetype is lower than the threshold, use the national value instead
+    # when the number surveyed in a zone/archetype is lower than the threshold, use the national value instead
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # national level values
     include_cols = c(grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
@@ -1226,27 +1232,35 @@ extract_vaccine_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_pop
   
 
   #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # when the number surveyed in a admin1 is lower than the threshold, use the archetype value instead
+  # when the number surveyed in a admin1 is lower than the threshold, use the zone or archetype value instead
   #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+  # see if zone information is available, and if not, use archetype
+  if('ZONE' %in% colnames(archetype_info)){
+    grouping_name = 'ZONE'
+  } else{
+    grouping_name = 'Archetype'
+  }
   # archetype level values
-  MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', 'Archetype')]), all=TRUE)
-  include_cols = c(which(names(MIS_shape) %in% c('Archetype')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+  MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', grouping_name)]), all=TRUE)
+  include_cols = c(which(names(MIS_shape) %in% c(grouping_name)), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
   arch_sums = MIS_shape[,include_cols] %>% 
-    group_by(Archetype) %>%
+    group_by(!!sym(grouping_name)) %>%
     summarise_all(sum, na.rm = TRUE)
+  
   for(var in vaccine_variables){
     if(paste0(var,'_num_true') %in% colnames(arch_sums)){
       arch_sums[[paste0(var, '_rate')]] = arch_sums[[paste0(var,'_num_true')]] / arch_sums[[paste0(var,'_num_total')]]
     }
   }
   
+
   for(var in vaccine_variables){
     if(paste0(var,'_num_true') %in% colnames(admin_sums)){
       for(i_admin in 1:nrow(admin_sums)){
         if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
-          admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-          admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-          admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+          admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+          admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+          admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
         }
       }
     }
@@ -1403,13 +1417,19 @@ extract_vaccine_MICS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_po
 
   
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # when the number surveyed in a admin1 is lower than the threshold, use the archetype value instead
+    # when the number surveyed in a admin1 is lower than the threshold, use the zone/archetype value instead
     #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # see if zone information is available, and if not, use archetype
+    if('ZONE' %in% colnames(archetype_info)){
+      grouping_name = 'ZONE'
+    } else{
+      grouping_name = 'Archetype'
+    }
     # archetype level values
-    MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', 'Archetype')]), all=TRUE)
-    include_cols = c(which(names(MIS_shape) %in% c('Archetype')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
+    MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', grouping_name)]), all=TRUE)
+    include_cols = c(which(names(MIS_shape) %in% c(grouping_name)), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
     arch_sums = MIS_shape[,include_cols] %>% 
-      group_by(Archetype) %>%
+      group_by(!!sym(grouping_name)) %>%
       summarise_all(sum, na.rm = TRUE)
     for(var in vaccine_variables){
       if(paste0(var,'_num_true') %in% colnames(arch_sums)){
@@ -1421,9 +1441,9 @@ extract_vaccine_MICS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_po
       if(paste0(var,'_num_true') %in% colnames(admin_sums)){
         for(i_admin in 1:nrow(admin_sums)){
           if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
-            admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-            admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-            admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
+            admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+            admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
+            admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums[[grouping_name]] == admin_sums[[grouping_name]][i_admin]]
           }
         }
       }
@@ -1487,121 +1507,7 @@ extract_itn_source_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_
   write.csv(as.data.frame(MIS_shape), paste0(hbhi_dir, '/estimates_from_DHS/DHS_itn_source_cluster_outputs_', year, '.csv'))
   
   
-  ####=========================================================================================================####
-  #   get values for each admin
-  ####=========================================================================================================####
-  # aggregate across clusters to get total number tested and positive within each admin and within each region for all variables
-  MIS_shape = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_vaccine_cluster_outputs_', year, '.csv'))[,-1]
-  # remove rows without known admin/region
-  MIS_shape = MIS_shape[!is.na(MIS_shape$NOMREGION),]
-  
-  # admin level values
-  include_cols = c(which(names(MIS_shape) %in% c('NOMREGION','NOMDEP')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
-  admin_sums = MIS_shape[,include_cols] %>% 
-    group_by(NOMREGION, NOMDEP) %>%
-    summarise_all(sum, na.rm = TRUE)
-  
-  for(var in vaccine_variables){
-    if(paste0(var,'_num_true') %in% colnames(admin_sums)){
-      admin_sums[[paste0(var, '_rate')]] = admin_sums[[paste0(var,'_num_true')]] / admin_sums[[paste0(var,'_num_total')]]
-    }
-  }
-  
-  # add any admins that did not have any DHS clusters (with all NAs and 0s) and record which state and archetype each cluster belongs to
-  archetype_info = read.csv(ds_pop_df_filename)
-  colnames(archetype_info)[colnames(archetype_info)=='LGA'] = 'NOMDEP'
-  colnames(archetype_info)[colnames(archetype_info)=='DS'] = 'NOMDEP'
-  colnames(archetype_info)[colnames(archetype_info)=='admin_name'] = 'NOMDEP'
-  colnames(archetype_info)[colnames(archetype_info)=='State'] = 'NOMREGION'
-  # colnames(archetype_info)[colnames(archetype_info)=='NOMDEP'] = 'NOMDEP_target'
-  archetype_info$name_match = sapply(archetype_info$NOMDEP, match_lga_names)
-  archetype_info = archetype_info[,c('name_match', 'NOMDEP', 'NOMREGION', 'Archetype')]
-  admin_sums$name_match = sapply(admin_sums$NOMDEP, match_lga_names)
-  colnames(admin_sums)[colnames(admin_sums) == 'NOMDEP'] = 'NOMDEP_dhs_orig'
-  admin_sums_expanded = merge(admin_sums, archetype_info, all=TRUE)
-  # admin_sums_expanded$NOMDEP[is.na(admin_sums_expanded$NOMDEP)] = admin_sums_expanded$NOMDEP_backup[is.na(admin_sums_expanded$NOMDEP)]
-  # check that all names have been matched successfully
-  if(length(admin_sums$name_match[which(!(admin_sums$name_match %in% archetype_info$name_match))])>0) warning('Not all LGA names from the shapefile were matched with archetype file')
-  if(length(admin_sums$NOMREGION[which(!(admin_sums$NOMREGION %in% archetype_info$NOMREGION))])>0) warning('Not all state names from the shapefile were matched with archetype file')
-  # remove extra columns
-  admin_sums_expanded = admin_sums_expanded[,-c(which(colnames(admin_sums_expanded) %in% c('NOMDEP_dhs_orig', 'name_match')))]
-  # change to zero sample size for admins that were not included in DHS
-  admin_sums_expanded[,grep('num_total', names(admin_sums_expanded))][is.na(admin_sums_expanded[,grep('num_total', names(admin_sums_expanded))])] = 0
-  write.csv(as.data.frame(admin_sums), paste0(hbhi_dir, '/estimates_from_DHS/DHS_vaccine_admin_', year, '.csv'))
-  admin_sums = admin_sums_expanded
-  
-  
-  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # when the number surveyed in a admin is lower than the threshold, use the region value instead
-  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # region level values
-  include_cols = c(which(names(MIS_shape) %in% c('NOMREGION')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
-  region_sums = MIS_shape[,include_cols] %>% 
-    group_by(NOMREGION) %>%
-    summarise_all(sum, na.rm = TRUE)
-  for(var in vaccine_variables){
-    if(paste0(var,'_num_true') %in% colnames(region_sums)){
-      region_sums[[paste0(var, '_rate')]] = region_sums[[paste0(var,'_num_true')]] / region_sums[[paste0(var,'_num_total')]]
-    }
-  }
-  
-  for(var in vaccine_variables){
-    if(paste0(var,'_num_true') %in% colnames(admin_sums)){
-      for(i_admin in 1:nrow(admin_sums)){
-        if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
-          admin_sums[[paste0(var,'_num_total')]][i_admin] = region_sums[[paste0(var,'_num_total')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
-          admin_sums[[paste0(var,'_num_true')]][i_admin] = region_sums[[paste0(var,'_num_true')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
-          admin_sums[[paste0(var,'_rate')]][i_admin] = region_sums[[paste0(var,'_rate')]][region_sums$NOMREGION == admin_sums$NOMREGION[i_admin]]
-        }
-      }
-    }
-  }
-  
-  
-  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # when the number surveyed in a admin1 is lower than the threshold, use the archetype value instead
-  #  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-  # archetype level values
-  MIS_shape = merge(MIS_shape, distinct(archetype_info[,c('NOMREGION', 'Archetype')]), all=TRUE)
-  include_cols = c(which(names(MIS_shape) %in% c('Archetype')), grep('num_total', names(MIS_shape)), grep('num_true', names(MIS_shape)))
-  arch_sums = MIS_shape[,include_cols] %>% 
-    group_by(Archetype) %>%
-    summarise_all(sum, na.rm = TRUE)
-  for(var in vaccine_variables){
-    if(paste0(var,'_num_true') %in% colnames(arch_sums)){
-      arch_sums[[paste0(var, '_rate')]] = arch_sums[[paste0(var,'_num_true')]] / arch_sums[[paste0(var,'_num_total')]]
-    }
-  }
-  
-  for(var in vaccine_variables){
-    if(paste0(var,'_num_true') %in% colnames(admin_sums)){
-      for(i_admin in 1:nrow(admin_sums)){
-        if(admin_sums[[paste0(var,'_num_total')]][i_admin]<min_num_total){
-          admin_sums[[paste0(var,'_num_total')]][i_admin] = arch_sums[[paste0(var,'_num_total')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-          admin_sums[[paste0(var,'_num_true')]][i_admin] = arch_sums[[paste0(var,'_num_true')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-          admin_sums[[paste0(var,'_rate')]][i_admin] = arch_sums[[paste0(var,'_rate')]][arch_sums$Archetype == admin_sums$Archetype[i_admin]]
-        }
-      }
-    }
-  }
-  
-  # save different version with specified minimum sample size in admin before using region value
-  write.csv(as.data.frame(admin_sums), paste0(hbhi_dir, '/estimates_from_DHS/DHS_vaccine_admin_minN',min_num_total,'_', year, '.csv'))
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -1689,27 +1595,40 @@ extract_archetype_level_DHS_data = function(hbhi_dir, dta_dir, ds_pop_df_filenam
     DHS_counts = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_admin_',year,'.csv'))
     # get rid of the rate columns
     DHS_counts = DHS_counts[,-grep('rate',colnames(DHS_counts))]
+    # get total counts within each archetype
+    DHS_arch_counts = DHS_counts %>% dplyr::select(-c(ZONE, NOMREGION, mean_date, X)) %>%
+      merge(archetype_info %>% 
+              dplyr::select(admin_name, seasonality_archetype, Archetype) %>%
+              rename(NOMDEP = admin_name)) %>%
+      dplyr::select(-NOMDEP) %>%
+      group_by(seasonality_archetype, Archetype) %>%
+      summarise_all(sum, na.rm=TRUE) %>%
+      ungroup() %>%
+      mutate(year=year)
+    
+    # # check that totals are the same after aggregation
+    # colSums(DHS_arch_counts[sapply(DHS_arch_counts, is.numeric)], na.rm=T)
+    # colSums(DHS_counts[sapply(DHS_counts, is.numeric)], na.rm=T)
+    
     # get the DHS variables for this year
-    variables0 = colnames(DHS_counts)[grep('_num_total', colnames(DHS_counts))]
+    variables0 = colnames(DHS_arch_counts)[grep('_num_total', colnames(DHS_arch_counts))]
     variables = gsub('_num_total','', variables0)
-    for(i_arch in 1:length(archetype_names)){
-      admins_in_arch = archetype_info$admin_name[which(archetype_info$seasonality_archetype == archetype_names[i_arch])]
-      DHS_counts_arch = DHS_counts[which(DHS_counts$NOMDEP %in% admins_in_arch),]
-      DHS_counts_arch = DHS_counts_arch[,grep('_num', colnames(DHS_counts_arch))] 
-      # take column sums to get totals in archetype, then calculate archetype-level rate and save in data frame
-      DHS_colsums = colSums(DHS_counts_arch, na.rm=TRUE)
-      DHS_aggregate_arch_cur = data.frame('archetype' = archetype_names[i_arch], 'year' = year)
-      for(i_var in 1:length(variables)){
-        if(all(c(paste0(variables[i_var], '_rate'), paste0(variables[i_var], '_num_true'), paste0(variables[i_var], '_num_total')) %in% colnames(DHS_aggregate_arch_cur))){
-          DHS_aggregate_arch_cur[[paste0(variables[i_var], '_rate')]] = DHS_colsums[[paste0(variables[i_var], '_num_true')]] / DHS_colsums[[paste0(variables[i_var], '_num_total')]]
-        }
-      }
+    
+    # calculate the archetype-level rate
+    for(vv in variables){
+      true_col = paste0(vv, "_num_true")
+      total_col = paste0(vv, "_num_total")
+      rate_col = paste0(vv, "_rate")
 
-      if((i_arch == 1) & (yy == 1)){
-        DHS_arch_aggregates = DHS_aggregate_arch_cur
-      } else{
-        DHS_arch_aggregates = merge(DHS_arch_aggregates, DHS_aggregate_arch_cur, by=intersect(colnames(DHS_arch_aggregates), colnames(DHS_aggregate_arch_cur)), all.x=TRUE, all.y=TRUE) # use merge instead of rbind because sometimes later years have more columns
+      if(true_col %in% names(DHS_arch_counts) && total_col %in% names(DHS_arch_counts)){
+        DHS_arch_counts[[rate_col]] = DHS_arch_counts[[true_col]] / DHS_arch_counts[[total_col]]
       }
+    }
+
+    if((yy == 1)){
+      DHS_arch_aggregates = DHS_arch_counts
+    } else{
+      DHS_arch_aggregates = merge(DHS_arch_aggregates, DHS_arch_counts, by=intersect(colnames(DHS_arch_aggregates), colnames(DHS_arch_counts)), all.x=TRUE, all.y=TRUE) # use merge instead of rbind because sometimes later years have more columns
     }
   }
   write.csv(as.data.frame(DHS_arch_aggregates), paste0(hbhi_dir, '/estimates_from_DHS/DHS_archetype_rates.csv'), row.names=FALSE)

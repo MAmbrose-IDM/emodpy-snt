@@ -69,9 +69,9 @@ create_season_calib_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm'
   # use the coverage observed in the dhs_year_cm_burnin DHS survey for all burnin years and the coverage observed in dhs_year_cm_calib for all main calib years
   # read in coverages for U5
   season_arch_rates = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_archetype_rates.csv'))
-  season_arch_rates = season_arch_rates[,which(colnames(season_arch_rates) %in% c('archetype','year', paste0(cm_variable_name,'_rate')))]
+  season_arch_rates = season_arch_rates[,which(colnames(season_arch_rates) %in% c('seasonality_archetype','year', paste0(cm_variable_name,'_rate')))]
   colnames(season_arch_rates)[colnames(season_arch_rates)==paste0(cm_variable_name,'_rate')] = 'U5_coverage'
-  colnames(season_arch_rates)[colnames(season_arch_rates)=='archetype'] = 'admin_name'
+  colnames(season_arch_rates)[colnames(season_arch_rates)=='seasonality_archetype'] = 'admin_name'
   
   
   # add in coverage for adults
@@ -84,7 +84,7 @@ create_season_calib_cm_input_from_DHS = function(hbhi_dir, cm_variable_name='cm'
   season_arch_rates$simday = 0
   season_arch_rates$duration = -1
   
-# extract U5 coverage for burnin and for main calibration
+  # extract U5 coverage for burnin and for main calibration
   burnin_coverage = season_arch_rates[season_arch_rates$year == dhs_year_cm_burnin,]
   calib_coverage = season_arch_rates[season_arch_rates$year == dhs_year_cm_calib,]
   
