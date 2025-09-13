@@ -100,6 +100,79 @@ calc_access_from_npc = function(access, npc_access_param1=0.98, npc_access_param
 }
 
 
+
+##############################################################
+# when cluster-level DHS data are not available but state-level ones are, add that information in the same format so that it can be used when estimating ITN coverage
+##############################################################
+add_state_DHS_ITN = function(additional_ITN_DHS_years, additional_ITN_DHS_files, ds_pop_df_filename){
+  admin_info = read.csv(ds_pop_df_filename)
+  net_dhs_info = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_ITN_dates_and_rates.csv'))
+  net_dhs_info$date = as.Date(net_dhs_info$date, tryFormats=c('%m/%d/%Y', '%m-%d-%Y', '%Y-%m-%d'))  
+  net_dhs_info_original = net_dhs_info
+  cur_dhs_years = unique(year(net_dhs_info$date))
+  file_revised = FALSE
+  
+  for(yy in 1:length(additional_ITN_DHS_years)){
+    new_dhs_year = additional_ITN_DHS_years[yy]
+    # check this year doesn't already exist in net_dhs_info
+    if(!(new_dhs_year %in% cur_dhs_years)){
+      file_revised=TRUE
+      # read in state-level DHS ITN data for this year
+      dhs_itn_state_cur = read.csv(additional_ITN_DHS_files[yy]) %>%
+        rename(date = assumed_survey_date) %>%
+        dplyr::select(State, itn_u5_rate, date) %>%
+        mutate(date = as.Date(date, format='%m/%d/%Y'),
+               State = str_trim(State, side = "right"))  # remove spaces from end of State names
+      
+      # standardize state names
+      dhs_itn_state_cur = standardize_state_names_in_df(target_names_df=admin_info, origin_names_df=dhs_itn_state_cur, target_names_col='State', origin_names_col='State')
+      
+      # create values at the LGA level
+      dhs_itn_admin_cur = merge(dhs_itn_state_cur, admin_info[,c('admin_name', 'State')], all=TRUE) %>%
+        rename(NOMREGION = State) %>%
+        dplyr::select(-matched_name)
+      
+      # merge into existing net_dhs_info
+      net_dhs_info = merge(net_dhs_info, dhs_itn_admin_cur, all=TRUE)
+    }
+  }
+  if(file_revised){
+    write.csv(net_dhs_info, paste0(hbhi_dir, '/estimates_from_DHS/DHS_ITN_dates_and_rates.csv'), row.names=FALSE)
+    write.csv(net_dhs_info_original, paste0(hbhi_dir, '/estimates_from_DHS/DHS_ITN_dates_and_rates_priorVersion.csv'), row.names=FALSE)
+  }
+  return(net_dhs_info)
+}
+
+
+
+
+
+##############################################################
+# get state-level fraction of ITNs that came from mass distributions
+##############################################################
+get_itn_cov_attrib_campaigns = function(net_dhs_info, hbhi_dir){
+  campaign_source_all = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/itn_source_state_level_all_years.csv')) %>%
+    dplyr::select(State, year, frac_campaign)
+  net_dhs_info$year = year(net_dhs_info$date)
+  all_survey_years = unique(net_dhs_info$year)
+  
+  # some survey years do not have estimates of the fraction of ITNs from campaigns. in those years, we use the average for each state when data is available
+  campaign_complete = campaign_source_all %>%
+    group_by(State) %>%
+    # make sure every state has all years
+    complete(year = all_survey_years) %>%
+    # fill estimate with state mean if missing
+    mutate(frac_campaign = ifelse(is.na(frac_campaign), mean(frac_campaign, na.rm = TRUE), frac_campaign)) %>%
+    ungroup() %>%
+    rename(NOMREGION = State)
+
+  # merge into the DHS coverage estimates df and adjust the coverage rates to reflect coverage from campaign-distributed ITNs
+  net_campaign_dhs_info = merge(net_dhs_info, campaign_complete, all=TRUE) %>%
+    mutate(across(contains("_rate"), ~ .x * frac_campaign))
+  return(net_campaign_dhs_info)
+}
+
+
 ############################################################################################################################
 ############################################################################################################################
 # back-calculated mass distribution coverage from observed net use at time of DHS survey
@@ -113,7 +186,7 @@ calc_access_from_npc = function(access, npc_access_param1=0.98, npc_access_param
 aggregate_itn_dhs_data_across_years = function(hbhi_dir, years, itn_variables, min_num_total=30, overwrite=FALSE){
   net_dhs_filename = paste0(hbhi_dir, '/estimates_from_DHS/DHS_ITN_dates_and_rates.csv')
   if(file.exists(net_dhs_filename) & !(overwrite)){
-    net_dhs_info = read.csv(net_dhs_filename)[,-1]
+    net_dhs_info = read.csv(net_dhs_filename)
   } else{
     net_dhs_info = data.frame()
     for(yy in 1:length(years)){
@@ -127,7 +200,7 @@ aggregate_itn_dhs_data_across_years = function(hbhi_dir, years, itn_variables, m
     }
     colnames(net_dhs_info)[which(colnames(net_dhs_info)=='NOMDEP')] = 'admin_name'
     colnames(net_dhs_info)[which(colnames(net_dhs_info)=='mean_date')] = 'date'
-    write.csv(net_dhs_info, net_dhs_filename)
+    write.csv(net_dhs_info, net_dhs_filename, row.names=FALSE)
   }
   return(net_dhs_info)
 }
@@ -153,17 +226,26 @@ aggregate_itn_dhs_data_across_years = function(hbhi_dir, years, itn_variables, m
 #    - net_life_lognormal_mu  # for the Expiration_Period_Log_Normal_Mu parameter in the lognormal decay distribution (time before nets discarded, lost, forgotten, etc.).
 #    - net_life_lognormal_sigma
 # single seed and admins may have different mass distributions dates
-create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn_distributions_by_admin_filename, grid_layout_state_locations, sim_start_year=2010, maximum_coverage=0.9,
+create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn_distributions_by_admin_filename, grid_layout_state_locations, ds_pop_df_filename, sim_start_year=2010, maximum_coverage=0.9,
                                                     seasonality_monthly_scalar,  # adjust net usage for seasonality
-                                                    years, min_num_total=30, default_first_coverage=0.1, itn_variable_base='itn_u5', save_age_ratio_plots=FALSE, save_timeseries_coverage_plots=FALSE
+                                                    years, min_num_total=30, default_first_coverage=0.1, itn_variable_base='itn_u5', save_age_ratio_plots=FALSE, save_timeseries_coverage_plots=FALSE,
+                                                    additional_ITN_DHS_years=c(), additional_ITN_DHS_files=c()
 ){
   # get the distribution dates for each admin
   itn_distributions_by_admin = read.csv(itn_distributions_by_admin_filename) 
   itn_distributions_by_admin$date = as.Date(itn_distributions_by_admin$date)
   # get the DHS value and date in each admin (includes all ITN variables)
   net_dhs_info = aggregate_itn_dhs_data_across_years(hbhi_dir, years, itn_variables, min_num_total)
-  net_dhs_info$date = as.Date(net_dhs_info$date)  
   
+  # add any additional DHS years that were recorded at the state level rather than cluster level
+  if((length(additional_ITN_DHS_years)>0) & is.numeric(additional_ITN_DHS_years[1])){
+    net_dhs_info = add_state_DHS_ITN(additional_ITN_DHS_years=additional_ITN_DHS_years, additional_ITN_DHS_files=additional_ITN_DHS_files, ds_pop_df_filename=ds_pop_df_filename)
+  }
+  net_dhs_info$date = as.Date(net_dhs_info$date, tryFormats=c('%m/%d/%Y', '%m-%d-%Y', '%Y-%m-%d'))  
+  
+  # adjust DHS/MIS survey coverage to capture the ITNs from mass campaigns
+  net_dhs_info = get_itn_cov_attrib_campaigns(net_dhs_info=net_dhs_info, hbhi_dir=hbhi_dir)
+
   # read in sampled retention lognormal mus and sigmas and take the first (expected) value
   net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_discard_decay_params.csv'))
   net_life_lognormal_mu = net_discard_decay$net_life_lognormal_mu[1]
@@ -304,7 +386,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
     coverage_timeseries = data.frame('admin_name'=c(), 'State'=c(), 'date'=c(), 'coverage'=c())
     first_day = as.Date('2010-01-01')
     # date_vector = seq(first_day, as.Date('2022-01-01'), by=1)
-    date_vector = seq.Date(first_day, as.Date('2023-01-01'), by='month')
+    date_vector = seq.Date(first_day, as.Date('2025-01-01'), by='month')
     timeseries_length = length(date_vector)
     for(aa in 1:length(all_admins)){
       cur_distributions = coverage_df[coverage_df$admin_name == all_admins[aa],]
@@ -333,7 +415,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -343,7 +425,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_line(data=coverage_timeseries, aes(x=date, y=coverage, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -357,7 +439,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -378,7 +460,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -391,7 +473,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -406,7 +488,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -420,7 +502,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -437,7 +519,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -453,7 +535,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2023-01-01'))) +
+        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 

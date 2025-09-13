@@ -14,27 +14,30 @@ country = 'NGA'  #'SLE'  # 'BDI'
 year_index = 4
 
 if(country =='NGA'){
-  base_filepath = 'C:/Users/moniqueam/Dropbox (IDM)/NU_collaboration'
-  base_hbhi_filepath = paste0(base_filepath, '/hbhi_nigeria')
+  user = Sys.getenv("USERNAME")
+  user_dir = file.path("C:/Users",user)
+  base_filepath = paste0(user_dir, '/Gates Foundation Dropbox/Malaria Team Folder/data/Nigeria/Nigeria_SNT_shared_data')
+  # base_filepath = 'C:/Users/moniqueam/Dropbox (IDM)/NU_collaboration'
+  # base_hbhi_filepath = paste0(base_filepath, '/hbhi_nigeria')
   
   dta_dir = paste0(base_filepath, '/nigeria_dhs/data_analysis/data/DHS/Downloads')
-  # read in shapefile with admin boundaries
-  shapefile_filepath = paste0(base_hbhi_filepath, '/SpatialClustering/reference_rasters_shapefiles/NGA_DS_clusteringProjection.shp')
-  admin_shape = shapefile(shapefile_filepath)
+  # # read in shapefile with admin boundaries
+  # shapefile_filepath = paste0(base_hbhi_filepath, '/SpatialClustering/reference_rasters_shapefiles/NGA_DS_clusteringProjection.shp')
+  # admin_shape = shapefile(shapefile_filepath)
   dhs_years = c(2010, 2013, 2015, 2018, 2021)
   dhs_year_dirs = c('NG_2010_MIS_06192019', 'NG_2013_DHS_06192019', 'NG_2015_MIS_06192019', 'NG_2018_DHS_11072019_1720_86355', 'NG_2021_MIS_12062022_90_72922')
   cur_year = dhs_years[year_index]
   cur_year_dir = dhs_year_dirs[year_index]
   
-  # get shapefile and cluster locations for survey year
-  shapefile_candidates = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.shp", full.names=TRUE, recursive=TRUE)
-  shapefile_candidates = shapefile_candidates[substr(shapefile_candidates, nchar(shapefile_candidates)-3+1, nchar(shapefile_candidates)) == 'shp']
-  if(length(shapefile_candidates) != 1){
-    warning(paste0(length(shapefile_candidates),  ' potential cluster-location shapefiles identified for DHS year ', cur_year, '. User needs to select which is appropriate. Currently using first file'))
-    shapefile_candidates = shapefile_candidates[1]
-  } 
-  locations_shp = shapefile(shapefile_candidates)
-  locations = data.frame(clusterid = locations_shp$DHSCLUST, latitude=locations_shp$LATNUM, longitude=locations_shp$LONGNUM)
+  # # get shapefile and cluster locations for survey year
+  # shapefile_candidates = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.shp", full.names=TRUE, recursive=TRUE)
+  # shapefile_candidates = shapefile_candidates[substr(shapefile_candidates, nchar(shapefile_candidates)-3+1, nchar(shapefile_candidates)) == 'shp']
+  # if(length(shapefile_candidates) != 1){
+  #   warning(paste0(length(shapefile_candidates),  ' potential cluster-location shapefiles identified for DHS year ', cur_year, '. User needs to select which is appropriate. Currently using first file'))
+  #   shapefile_candidates = shapefile_candidates[1]
+  # } 
+  # locations_shp = shapefile(shapefile_candidates)
+  # locations = data.frame(clusterid = locations_shp$DHSCLUST, latitude=locations_shp$LATNUM, longitude=locations_shp$LONGNUM)
   
   # get list of relevant dta files
   dta_filepaths = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.DTA", full.names=TRUE, recursive=TRUE)
@@ -155,6 +158,16 @@ find_code_locations(dta_list=dta_list, code_str='hv006')
 # possible_code_strs = c('hml20','hml19','s508', '460','461')
 find_code_locations(dta_list=dta_list, code_str='hml20')
 find_code_locations(dta_list=dta_list, code_str='hml19')
+
+
+########################
+# source of ITNs
+########################
+# possible_code_strs = c('hml20','hml19','s508', '460','461')
+find_code_locations(dta_list=dta_list, code_str='hml22')
+find_code_locations(dta_list=dta_list, code_str='hml23')
+
+
 
 ######################
 # treatment-seeking
@@ -712,76 +725,76 @@ table(dta_2$iptp_num_doses)
 
 
 
-##################################################################################
-# determine which clusters are in which chiefdoms
-##################################################################################
-
-
-# turn MIS_2016 into spatial points data frame
-# not sure what the spatial projection is... will try with same spatial projection as shapefile
-points_crs = crs(admin_shape)
-MIS_2016_shape = SpatialPointsDataFrame(MIS_2016[,c('longitude', 'latitude')],
-                                        MIS_2016,
-                                        proj4string = points_crs)
-# find which chiefdom each cluster belongs to
-MIS_2016_locations = over(MIS_2016_shape, admin_shape)
-if(nrow(MIS_2016_locations) == nrow(MIS_2016_shape)){
-  MIS_2016_shape$NAME_3 = MIS_2016_locations$NAME_3
-  MIS_2016_shape$NAME_2 = MIS_2016_locations$NAME_2
-  MIS_2016_shape$NAME_1 = MIS_2016_locations$NAME_1
-}
-
-write.csv(as.data.frame(MIS_2016_shape), 'C:/Users/mambrose/Dropbox (IDM)/Malaria Team Folder/projects/SierraLeone_hbhi/explore_DHS/MIS_2016.csv')
-
-
-par(mfrow=c(3,4))
-# for each of the interventions/measures, count number of individuals surveyed in each chiefdom
-num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_3','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
-  group_by(NAME_3) %>%
-  summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
-            num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
-            num_w_fever=sum(num_w_fever, na.rm = TRUE),
-            num_preg=sum(num_preg, na.rm = TRUE))
-num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
-hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,800, length.out=80))
-hist(num_surveyed$num_use_itn_all,  main='ITN', breaks=seq(0,1600, length.out=80))
-hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,200, length.out=80))
-hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,500, length.out=80))
-
-
-# look at survey numbers by district
-# for each of the interventions/measures, count number of individuals surveyed in each chiefdom
-num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_2','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
-  group_by(NAME_2) %>%
-  summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
-            num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
-            num_w_fever=sum(num_w_fever, na.rm = TRUE),
-            num_preg=sum(num_preg, na.rm = TRUE))
-num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
-hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,800, length.out=80))
-hist(num_surveyed$num_use_itn_all,  main='ITN', breaks=seq(0,1600, length.out=80))
-hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,200, length.out=80))
-hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,500, length.out=80))
-
-# look at survey numbers by region
-# for each of the interventions/measures, count number of individuals surveyed in each chiefdom
-num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_1','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
-  group_by(NAME_1) %>%
-  summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
-            num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
-            num_w_fever=sum(num_w_fever, na.rm = TRUE),
-            num_preg=sum(num_preg, na.rm = TRUE))
-num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
-hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,3000, length.out=80))
-hist(num_surveyed$num_use_itn_all,  main='ITN',breaks=seq(0,6000, length.out=80))
-hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,700, length.out=80))
-hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,2000, length.out=80))
-par(mfrow=c(1,1))
-
-
-
-
-# get weighted means and number tested/positive within each chiefdom for all variables
+# ##################################################################################
+# # determine which clusters are in which chiefdoms
+# ##################################################################################
+# 
+# 
+# # turn MIS_2016 into spatial points data frame
+# # not sure what the spatial projection is... will try with same spatial projection as shapefile
+# points_crs = crs(admin_shape)
+# MIS_2016_shape = SpatialPointsDataFrame(MIS_2016[,c('longitude', 'latitude')],
+#                                         MIS_2016,
+#                                         proj4string = points_crs)
+# # find which chiefdom each cluster belongs to
+# MIS_2016_locations = over(MIS_2016_shape, admin_shape)
+# if(nrow(MIS_2016_locations) == nrow(MIS_2016_shape)){
+#   MIS_2016_shape$NAME_3 = MIS_2016_locations$NAME_3
+#   MIS_2016_shape$NAME_2 = MIS_2016_locations$NAME_2
+#   MIS_2016_shape$NAME_1 = MIS_2016_locations$NAME_1
+# }
+# 
+# write.csv(as.data.frame(MIS_2016_shape), 'C:/Users/mambrose/Dropbox (IDM)/Malaria Team Folder/projects/SierraLeone_hbhi/explore_DHS/MIS_2016.csv')
+# 
+# 
+# par(mfrow=c(3,4))
+# # for each of the interventions/measures, count number of individuals surveyed in each chiefdom
+# num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_3','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
+#   group_by(NAME_3) %>%
+#   summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
+#             num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
+#             num_w_fever=sum(num_w_fever, na.rm = TRUE),
+#             num_preg=sum(num_preg, na.rm = TRUE))
+# num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
+# hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,800, length.out=80))
+# hist(num_surveyed$num_use_itn_all,  main='ITN', breaks=seq(0,1600, length.out=80))
+# hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,200, length.out=80))
+# hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,500, length.out=80))
+# 
+# 
+# # look at survey numbers by district
+# # for each of the interventions/measures, count number of individuals surveyed in each chiefdom
+# num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_2','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
+#   group_by(NAME_2) %>%
+#   summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
+#             num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
+#             num_w_fever=sum(num_w_fever, na.rm = TRUE),
+#             num_preg=sum(num_preg, na.rm = TRUE))
+# num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
+# hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,800, length.out=80))
+# hist(num_surveyed$num_use_itn_all,  main='ITN', breaks=seq(0,1600, length.out=80))
+# hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,200, length.out=80))
+# hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,500, length.out=80))
+# 
+# # look at survey numbers by region
+# # for each of the interventions/measures, count number of individuals surveyed in each chiefdom
+# num_surveyed = as.data.frame(MIS_2016_shape[c('NAME_1','num_mic_test', 'num_use_itn_all', 'num_w_fever', 'num_preg')]) %>% 
+#   group_by(NAME_1) %>%
+#   summarise(num_mic_test=sum(num_mic_test, na.rm = TRUE),
+#             num_use_itn_all=sum(num_use_itn_all, na.rm = TRUE),
+#             num_w_fever=sum(num_w_fever, na.rm = TRUE),
+#             num_preg=sum(num_preg, na.rm = TRUE))
+# num_surveyed = num_surveyed[!is.na(num_surveyed[,1]),]
+# hist(num_surveyed$num_mic_test,main='microscopy (PfPR)', breaks=seq(0,3000, length.out=80))
+# hist(num_surveyed$num_use_itn_all,  main='ITN',breaks=seq(0,6000, length.out=80))
+# hist(num_surveyed$num_w_fever, main='fever (CM)', breaks=seq(0,700, length.out=80))
+# hist(num_surveyed$num_preg, main='preganacies (IPTp)', breaks=seq(0,2000, length.out=80))
+# par(mfrow=c(1,1))
+# 
+# 
+# 
+# 
+# # get weighted means and number tested/positive within each chiefdom for all variables
 
 
 

@@ -1510,8 +1510,61 @@ extract_itn_source_DHS_data = function(hbhi_dir, dta_dir, year, admin_shape, ds_
 }
 
 
+####=========================================================================================================####
+# for years where information is available, get the fraction of ITNs that originated from a campaign
+####=========================================================================================================####
+extract_frac_itn_from_campaign_by_state = function(hbhi_dir, dta_dir, years, archetype_info){
+  campaign_source_all = data.frame()
+  for(yy in 1:length(years)){
+    year = years[yy]
+    DHS_file_recode_df = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/DHS_',year,'_files_recodes_for_sims.csv'))
+    if('itn_source' %in% DHS_file_recode_df$variable){
+      var_index = which(DHS_file_recode_df$variable == 'itn_source')
+      cur_dta = read.dta(paste0(dta_dir, '/', DHS_file_recode_df$folder_dir[var_index], '/', DHS_file_recode_df$filename[var_index]))
+      
+      itn_source = cur_dta %>%
+        dplyr::select(source = all_of(DHS_file_recode_df$code[var_index]),
+                      State = all_of(DHS_file_recode_df$state_code[var_index])) %>%
+        # get rid of state abbreviations at the start of the state name and empty spaces at the end
+        mutate(
+          State = str_trim(State, side = "right"),           # remove trailing spaces
+          State = str_replace(State, "^[A-Za-z]{2} ", ""),   # remove 2 letters + space at start
+          State = str_remove(State, " (rural|urban)$")       # remove urban/rural specification at the end of the string
+        ) %>%
+        filter(!is.na(source))
+        
+      campaign_source = itn_source %>%
+        filter(str_detect(source, "no|antenatal|immunization|campaign")) %>%   # keep only relevant rows
+        group_by(State) %>%
+        summarise(
+          frac_campaign = mean(str_detect(source, "campaign")),   # fraction = mean of TRUE/FALSE
+          n_total = n(),                                         # optional: total denominator
+          n_campaign = sum(str_detect(source, "campaign")),      # optional: campaign count
+          .groups = "drop"
+        )
 
-
+      # standardize state and LGA names
+      campaign_source = standardize_state_names_in_df(target_names_df=archetype_info, origin_names_df=campaign_source, target_names_col='State', origin_names_col='State') %>%
+        dplyr::select(-matched_name) %>%
+        mutate(year = year)
+      
+      if(nrow(campaign_source_all)==0){
+        campaign_source_all = campaign_source
+      } else{
+        campaign_source_all = merge(campaign_source_all, campaign_source, all=TRUE)
+      }
+    }
+  }
+  ggplot(campaign_source_all, aes(x=State, y=frac_campaign, fill=as.factor(year))) +  
+    geom_col(position='dodge')+
+    labs(x = "State", y = "Fraction of ITNs from mass campaign") +
+    theme_minimal()+
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+    labs(title='Fraction of ITNs from mass campaigns in DHS/MIS')
+  plot(x=campaign_source_all$frac_campaign[campaign_source_all$year==2018], y=campaign_source_all$frac_campaign[campaign_source_all$year==2021], type='p', bty='L')
+  
+  write.csv(campaign_source_all, paste0(hbhi_dir, '/estimates_from_DHS/itn_source_state_level_all_years.csv'), row.names=FALSE)
+}
 
 
 
