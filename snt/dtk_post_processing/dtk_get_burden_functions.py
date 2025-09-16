@@ -14,6 +14,8 @@ def monthlyU1PfPRAnalyzer(output_path, start_year, end_year):
         pop = [x[0] for x in pop_all]
         d = data['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]
         pfpr = [x[0] for x in d]
+        d = data['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]
+        pfpr_rdt = [x[0] for x in d]
         d = data['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]
         clinical_cases = [d[yy][0] * pop_all[yy][0] * 30 / 365 for yy in range(12)]
         d = data['DataByTimeAndAgeBins']['Annual Severe Incidence by Age Bin'][:12]
@@ -21,6 +23,7 @@ def monthlyU1PfPRAnalyzer(output_path, start_year, end_year):
 
         simdata = pd.DataFrame({'month': range(1, 13),
                                 'PfPR U1': pfpr,
+                                'PfPR RDT U1': pfpr_rdt,
                                 'Cases U1': clinical_cases,
                                 'Severe cases U1': severe_cases,
                                 'Pop U1': pop})
@@ -43,6 +46,9 @@ def monthlyU5PfPRAnalyzer(output_path, start_year, end_year):
         # PfPR
         d = data['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
         pfpr = [((d[yy][0] * pop_all[yy][0]) + (d[yy][1] * pop_all[yy][1])) / (pop_all[yy][0] + pop_all[yy][1]) for yy in range(12)]
+        # RDT PfPR
+        d = data['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]  # remove final five days: assume final five days have same average as rest of month
+        pfpr_rdt = [((d[yy][0] * pop_all[yy][0]) + (d[yy][1] * pop_all[yy][1])) / (pop_all[yy][0] + pop_all[yy][1]) for yy in range(12)]
         # clinical cases
         d = data['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
         # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
@@ -54,6 +60,7 @@ def monthlyU5PfPRAnalyzer(output_path, start_year, end_year):
 
         simdata = pd.DataFrame({'month': range(1, 13),
                                 'PfPR U5': pfpr,
+                                'PfPR RDT U5': pfpr_rdt,
                                 'Cases U5': clinical_cases,
                                 'Severe cases U5': severe_cases,
                                 'Pop U5': pop})
@@ -244,6 +251,19 @@ def MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(output_path, start_year, en
                          (d[yy][3] * pop[yy][3]) + (d[yy][4] * pop[yy][4]) + (d[yy][5] * pop[yy][5])) /
                         (pop[yy][0] + pop[yy][1] + pop[yy][2] + pop[yy][3] + pop[yy][4] + pop[yy][5]) for yy in range(12)]
 
+        # RDT PfPR
+        d = data['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]  # remove final five days: assume final five days have same average as rest of month
+        # use weighted average for combined age groups
+        pfpr_rdt_Under1 = [x[0] for x in d]
+        pfpr_rdt_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) / (pop[yy][0] + pop[yy][1]) for yy in range(12)]
+        pfpr_rdt_5to15 = [x[2] for x in d]
+        pfpr_rdt_15to30 = [x[3] for x in d]
+        pfpr_rdt_30to50 = [x[4] for x in d]
+        pfpr_rdt_50plus = [x[5] for x in d]
+        pfpr_rdt_allAges = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1]) + (d[yy][2] * pop[yy][2]) +
+                         (d[yy][3] * pop[yy][3]) + (d[yy][4] * pop[yy][4]) + (d[yy][5] * pop[yy][5])) /
+                        (pop[yy][0] + pop[yy][1] + pop[yy][2] + pop[yy][3] + pop[yy][4] + pop[yy][5]) for yy in range(12)]
+
         # clinical cases
         d = data['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
         # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
@@ -276,6 +296,7 @@ def MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(output_path, start_year, en
                                 'Pop': (pop_Under1 + pop_Under5 + pop_5to15 + pop_15to30 + pop_30to50 + pop_50plus + pop_allAges),
                                 'New Infections': (new_infections_Under1 + new_infections_Under5 + new_infections_5to15 + new_infections_15to30 + new_infections_30to50 + new_infections_50plus + new_infections_allAges),
                                 'PfPR': (pfpr_Under1 + pfpr_Under5 + pfpr_5to15 + pfpr_15to30 + pfpr_30to50 + pfpr_50plus + pfpr_allAges),
+                                'PfPR RDT': (pfpr_rdt_Under1 + pfpr_rdt_Under5 + pfpr_rdt_5to15 + pfpr_rdt_15to30 + pfpr_rdt_30to50 + pfpr_rdt_50plus + pfpr_rdt_allAges),
                                 'Clinical cases': (clinical_cases_Under1 + clinical_cases_Under5 + clinical_cases_5to15 + clinical_cases_15to30 + clinical_cases_30to50 + clinical_cases_50plus + clinical_cases_allAges),
                                 'Severe cases': (severe_cases_Under1 + severe_cases_Under5 + severe_cases_5to15 + severe_cases_15to30 + severe_cases_30to50 + severe_cases_50plus + severe_cases_allAges)
                                 })
@@ -285,215 +306,3 @@ def MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(output_path, start_year, en
         adf.to_csv(os.path.join(output_path, 'newInfections_PfPR_cases_monthly_byAgeGroup_withU1U5.csv'), index=False)
 
 
-# class MonthlyNewInfectionsAnalyzerByAge(IAnalyzer):
-#
-#     def __init__(self, expt_name, sweep_variables=None, working_dir=".", start_year=2020, end_year=2026,
-#                  input_filename_base='MalariaSummaryReport_Monthly',
-#                  output_filename='newInfections_PfPR_cases_monthly_byAgeGroup.csv'):
-#
-#         super(MonthlyNewInfectionsAnalyzerByAge, self).__init__(working_dir=working_dir,
-#                                                                 filenames=[
-#                                                                     "output/%s%d.json" % (input_filename_base, x)
-#                                                                     for x in range(start_year, end_year + 1)]
-#                                                                 )
-#         self.sweep_variables = sweep_variables or ["Run_Number"]
-#         self.expt_name = expt_name
-#         self.start_year = start_year
-#         self.end_year = end_year
-#         self.output_filename = output_filename
-#
-#     # def filter(self, simulation):
-#     #     return simulation.status.name == 'Succeeded'
-#
-#     def map(self, data, simulation):
-#
-#         adf = pd.DataFrame()
-#         for year, fname in zip(range(self.start_year, self.end_year + 1), self.filenames):
-#             # from the 30-day reporting interval, all months have 30 days, plus a final 'month' at the end of the year with 5 days
-#
-#             # iterate through age bins, extracting the monthly values of each metric and then appending into data frame
-#             simdata_allAges = pd.DataFrame()
-#
-#             for aa in range(len(data[fname]['Metadata']['Age Bins'])):
-#                 # population size
-#                 pop = data[fname]['DataByTimeAndAgeBins']['Average Population by Age Bin'][
-#                       :12]  # remove final five days: assume final five days have same average as rest of month
-#                 pop_monthly = [x[aa] for x in pop]
-#
-#                 # new infections
-#                 d = data[fname]['DataByTimeAndAgeBins']['New Infections by Age Bin'][:13]
-#                 d[11] = [sum(x) for x in zip(d[11], d[12])]  # add final five days to last month
-#                 del d[-1]  # remove final five days
-#                 new_infections_monthly = [x[aa] for x in d]
-#
-#                 # PfPR
-#                 d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][
-#                     :12]  # remove final five days: assume final five days have same average as rest of month
-#                 pfpr_monthly = [x[aa] for x in d]
-#
-#                 # clinical cases
-#                 d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][
-#                     :12]  # remove final five days: assume final five days have same average as rest of month
-#                 # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
-#                 clinical_cases_monthly = [d[yy][aa] * pop[yy][aa] * 30 / 365 for yy in range(12)]
-#
-#                 # severe cases
-#                 d = data[fname]['DataByTimeAndAgeBins']['Annual Severe Incidence by Age Bin'][
-#                     :12]  # remove final five days: assume final five days have same average as rest of month
-#                 # adjust the per-person annualized number (the reported value) to get the total number of severe cases in that age group in a month
-#                 severe_cases_monthly = [d[yy][aa] * pop[yy][aa] * 30 / 365 for yy in range(12)]
-#
-#                 # order is [under 15, 15-30, 30-50, over 50]
-#                 simdata = pd.DataFrame({'month': list(range(1, 13)),
-#                                         'AgeGroup': np.repeat([data[fname]['Metadata']['Age Bins'][aa]], 12),
-#                                         'Pop': pop_monthly,
-#                                         'New Infections': new_infections_monthly,
-#                                         'PfPR': pfpr_monthly,
-#                                         'Clinical cases': clinical_cases_monthly,
-#                                         'Severe cases': severe_cases_monthly
-#                                         })
-#                 simdata['year'] = year
-#                 simdata_allAges = pd.concat([simdata_allAges, simdata])
-#             adf = pd.concat([adf, simdata_allAges])
-#
-#         for sweep_var in self.sweep_variables:
-#             if sweep_var in simulation.tags.keys():
-#                 adf[sweep_var] = simulation.tags[sweep_var]
-#         return adf
-#
-#     def reduce(self, all_data):
-#
-#         selected = [data for sim, data in all_data.items()]
-#         if len(selected) == 0:
-#             print("No data have been returned... Exiting...")
-#             return
-#
-#         output_dir = os.path.join(self.working_dir, self.expt_name)
-#         os.makedirs(output_dir, exist_ok=True)
-#
-#         adf = pd.concat(selected).reset_index(drop=True)
-#         adf.to_csv((os.path.join(self.working_dir, self.expt_name, self.output_filename)), index=False)
-
-# if __name__ == "__main__":
-#     from idmtools.analysis.analyze_manager import AnalyzeManager
-#     from idmtools.core import ItemType
-#     from idmtools.core.platform_factory import Platform
-#     from snt.load_paths import load_box_paths
-#
-#     platform = Platform('Calculon')
-#
-#     data_path, project_path = load_box_paths(country_name='Nigeria')
-#
-#     # working_dir = os.path.join(project_path, 'simulation_output', 'simulations_to_present')
-#     # start_year = 2010  # simulation starts in January of this year
-#     # end_year = 2024  # simulation ends in December of this year
-#     working_dir = os.path.join(project_path, 'simulation_outputs', 'simulations_future')
-#     start_year = 2025  # simulation starts in January of this year
-#     end_year = 2031  # simulation ends in December of this year
-#
-#     expt_ids = {
-#         # 'NGA25_toPresent_allInter': '0b3921cd-bf7f-f011-aa25-b88303911bc1',
-#         'test': '828927f3-d57f-f011-aa25-b88303911bc1'
-#     }
-#
-#     for expname, expid in expt_ids.items():
-#         print('running expt %s' % expname)
-#         # report_count_channels = ['Received_Treatment', 'Received_Severe_Treatment', 'Received_NMF_Treatment',
-#         #                           'Bednet_Got_New_One', 'Bednet_Using',  # 'Received_Self_Medication',
-#         #                          'Received_Campaign_Drugs', 'Received_IRS'
-#         #                          ]
-#         report_count_channels = None
-#
-#         analyzers = [
-#             # MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(expt_name=expname,
-#             #                                   sweep_variables=["Run_Number", "admin_name"],
-#             #                                   working_dir=working_dir,
-#             #                                   start_year=start_year,
-#             #                                   end_year=end_year,
-#             #                                   input_filename_base='MalariaSummaryReport_Monthly',
-#             #                                   output_filename='newInfections_PfPR_cases_monthly_byAgeGroup_withU1U5.csv'),
-#             # monthlySevereTreatedAnalyzer_byAgeGroup_withU1U5(expt_name=expname,
-#             #                                   sweep_variables=["Run_Number", "admin_name"],
-#             #                                   working_dir=working_dir,
-#             #                                   start_year=start_year,
-#             #                                   end_year=end_year),
-#             monthlyU5PfPRAnalyzer(expt_name=expname,
-#                                   sweep_variables=["Run_Number", "admin_name"],
-#                                   working_dir=working_dir,
-#                                   start_year=start_year,
-#                                   end_year=end_year),
-#         ]
-#         am = AnalyzeManager(platform=platform, ids=[(expid, ItemType.EXPERIMENT)], analyzers=analyzers,
-#                             analyze_failed_items=True)
-#         am.analyze()
-#
-#         # if 'no_IRS_SMC_ITN_CM' in expname:
-#         #     cur_monthlyTreatedCasesAnalyzer = monthlyTreatedCasesAnalyzer(expt_name=expname,
-#         #                                                                   channels=['Received_NMF_Treatment'],
-#         #                                                                   sweep_variables=["Run_Number",
-#         #                                                                                    "admin_name"],
-#         #                                                                   working_dir=working_dir,
-#         #                                                                   start_year=start_year,
-#         #                                                                   end_year=end_year)
-#         # else:
-#         #     cur_monthlyTreatedCasesAnalyzer = monthlyTreatedCasesAnalyzer(expt_name=expname,
-#         #                                                                   channels=report_count_channels,
-#         #                                                                   sweep_variables=["Run_Number",
-#         #                                                                                    "admin_name"],
-#         #                                                                   working_dir=working_dir,
-#         #                                                                   start_year=start_year,
-#         #                                                                   end_year=end_year)
-#         #
-#         # analyzers = [
-#         #     monthlyU5PfPRAnalyzer(expt_name=expname,
-#         #                           sweep_variables=["Run_Number", "admin_name"],
-#         #                           working_dir=working_dir,
-#         #                           start_year=start_year,
-#         #                           end_year=end_year),
-#         #     # # ==== <- remove U1 for 2010-2020 if no IPTi
-#         #     # monthlyU1PfPRAnalyzer(expt_name=expname,
-#         #     #                       sweep_variables=["Run_Number", "admin_name"],
-#         #     #                       working_dir=working_dir,
-#         #     #                       start_year=start_year,
-#         #     #                       end_year=end_year),
-#         #     # # =====
-#         #     cur_monthlyTreatedCasesAnalyzer,
-#         #     monthlyEventAnalyzer(expt_name=expname,
-#         #                          channels=report_count_channels,
-#         #                          sweep_variables=["Run_Number", "admin_name"],
-#         #                          working_dir=working_dir,
-#         #                          start_year=start_year,
-#         #                          end_year=end_year),
-#         #     monthlySevereTreatedByAgeAnalyzer(expt_name=expname,
-#         #                                       sweep_variables=["Run_Number", "admin_name"],
-#         #                                       working_dir=working_dir,
-#         #                                       start_year=start_year,
-#         #                                       end_year=end_year,
-#         #                                       agebins=[5, 120]),
-#         #     MonthlyNewInfectionsAnalyzer(expt_name=expname,
-#         #                                  sweep_variables=["Run_Number", "admin_name"],
-#         #                                  working_dir=working_dir,
-#         #                                  start_year=start_year,
-#         #                                  end_year=end_year,
-#         #                                  input_filename_base='MalariaSummaryReport_Monthly',
-#         #                                  output_filename='newInfections_PfPR_cases_monthly_byAgeGroup.csv'),
-#         #     MonthlyNewInfectionsAnalyzer_withU5(expt_name=expname,
-#         #                                         sweep_variables=["Run_Number", "admin_name"],
-#         #                                         working_dir=working_dir,
-#         #                                         start_year=start_year,
-#         #                                         end_year=end_year,
-#         #                                         input_filename_base='MalariaSummaryReport_Monthly',
-#         #                                         output_filename='newInfections_PfPR_cases_monthly_byAgeGroup_withU5.csv'),
-#         #     MonthlyNewInfectionsAnalyzerByAge(expt_name=expname,
-#         #                                       sweep_variables=["Run_Number", "admin_name"],
-#         #                                       working_dir=working_dir,
-#         #                                       start_year=start_year,
-#         #                                       end_year=end_year,
-#         #                                       input_filename_base='MalariaSummaryReport_Monthly',
-#         #                                       output_filename='newInfections_PfPR_cases_monthly_byAgeGroup.csv')
-#         #
-#         # ]
-#         # am = AnalyzeManager(platform=platform, ids=[(expid, ItemType.EXPERIMENT)], analyzers=analyzers,
-#         #                     analyze_failed_items=True)
-#         # am.analyze()
-#
