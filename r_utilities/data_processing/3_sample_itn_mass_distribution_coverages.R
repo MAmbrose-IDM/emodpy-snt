@@ -12,7 +12,7 @@ library(prettyGraphs)
 library(lubridate)
 library(gridExtra) 
 library(geofacet)
-
+library(tidyr)
 
 ##############################################################
 # sample net retention times and parameterize lognormal
