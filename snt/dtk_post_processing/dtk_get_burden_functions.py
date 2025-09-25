@@ -153,7 +153,7 @@ def monthlySevereTreatedByAgeAnalyzer(output_path, start_year):
                                         'Num_U1_Received_Severe_Treatment',
                                         'Num_U5_Received_Severe_Treatment',
                                         'Num_all_ages_Received_Severe_Treatment'])
-    simdata.fillna(0)
+    simdata = simdata.fillna(0)
     simdata.to_csv(os.path.join(output_path, 'Treated_Severe_Monthly_Cases_By_Age.csv'), index=False)
 
     included_child_bins = ['U%i' % x for x in agebins if x < 20]
@@ -302,7 +302,7 @@ def MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(output_path, start_year, en
                                 })
         simdata['year'] = year
         adf = pd.concat([adf, simdata])
-        adf = adf.reset_index(drop=True)
-        adf.to_csv(os.path.join(output_path, 'newInfections_PfPR_cases_monthly_byAgeGroup_withU1U5.csv'), index=False)
+    adf = adf.reset_index(drop=True)
+    adf.to_csv(os.path.join(output_path, 'newInfections_PfPR_cases_monthly_byAgeGroup_withU1U5.csv'), index=False)
 
 
