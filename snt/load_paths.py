@@ -27,3 +27,7 @@ def load_box_paths(user_path=None, country_name='Example'):
     return data_path, project_path
 
 
+def load_emodpy_snt_path():
+    user_path = os.path.expanduser('~')
+    script_path = os.path.join(user_path, 'Documents', 'emodpy-snt')
+    return script_path

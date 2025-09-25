@@ -9,7 +9,7 @@ class monthlyU1PfPRAnalyzer(IAnalyzer):
 
     def __init__(self, expt_name, sweep_variables=None, working_dir=".", start_year=2020, end_year=2026):
         super(monthlyU1PfPRAnalyzer, self).__init__(working_dir=working_dir,
-                                                    filenames=["output/MalariaSummaryReport_Monthly_U1U5_%d.json" % x
+                                                    filenames=["output/MalariaSummaryReport_Monthly_%d.json" % x
                                                                for x in range(start_year, end_year)]
                                                     )
         self.sweep_variables = sweep_variables or ["Run_Number"]

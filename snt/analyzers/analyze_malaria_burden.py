@@ -28,6 +28,8 @@ class monthlyU1PfPRAnalyzer(IAnalyzer):
             pop = [x[0] for x in pop_all]
             d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]
             pfpr = [x[0] for x in d]
+            d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]
+            pfpr_rdt = [x[0] for x in d]
             d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]
             clinical_cases = [d[yy][0] * pop_all[yy][0] * 30 / 365 for yy in range(12)]
             d = data[fname]['DataByTimeAndAgeBins']['Annual Severe Incidence by Age Bin'][:12]
@@ -35,6 +37,7 @@ class monthlyU1PfPRAnalyzer(IAnalyzer):
 
             simdata = pd.DataFrame({'month': range(1, 13),
                                     'PfPR U1': pfpr,
+                                    'PfPR RDT U1': pfpr_rdt,
                                     'Cases U1': clinical_cases,
                                     'Severe cases U1': severe_cases,
                                     'Pop U1': pop})
@@ -86,6 +89,9 @@ class monthlyU5PfPRAnalyzer(IAnalyzer):
             # PfPR
             d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
             pfpr = [((d[yy][0] * pop_all[yy][0]) + (d[yy][1] * pop_all[yy][1])) / (pop_all[yy][0] + pop_all[yy][1]) for yy in range(12)]
+            # RDT PfPR
+            d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]  # remove final five days: assume final five days have same average as rest of month
+            pfpr_rdt = [((d[yy][0] * pop_all[yy][0]) + (d[yy][1] * pop_all[yy][1])) / (pop_all[yy][0] + pop_all[yy][1]) for yy in range(12)]
             # clinical cases
             d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
             # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
@@ -97,6 +103,7 @@ class monthlyU5PfPRAnalyzer(IAnalyzer):
 
             simdata = pd.DataFrame({'month': range(1, 13),
                                     'PfPR U5': pfpr,
+                                    'PfPR RDT U5': pfpr_rdt,
                                     'Cases U5': clinical_cases,
                                     'Severe cases U5': severe_cases,
                                     'Pop U5': pop})
@@ -527,28 +534,36 @@ class MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(IAnalyzer):
             new_infections_allAges = [sum(x[:6]) for x in d]
 
             # PfPR
-            d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][
-                :12]  # remove final five days: assume final five days have same average as rest of month
+            d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
             # use weighted average for combined age groups
             pfpr_Under1 = [x[0] for x in d]
-            pfpr_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) / (pop[yy][0] + pop[yy][1]) for yy in
-                           range(12)]
+            pfpr_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) / (pop[yy][0] + pop[yy][1]) for yy in range(12)]
             pfpr_5to15 = [x[2] for x in d]
             pfpr_15to30 = [x[3] for x in d]
             pfpr_30to50 = [x[4] for x in d]
             pfpr_50plus = [x[5] for x in d]
             pfpr_allAges = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1]) + (d[yy][2] * pop[yy][2]) +
                              (d[yy][3] * pop[yy][3]) + (d[yy][4] * pop[yy][4]) + (d[yy][5] * pop[yy][5])) /
-                            (pop[yy][0] + pop[yy][1] + pop[yy][2] + pop[yy][3] + pop[yy][4] + pop[yy][5]) for yy in
-                            range(12)]
+                            (pop[yy][0] + pop[yy][1] + pop[yy][2] + pop[yy][3] + pop[yy][4] + pop[yy][5]) for yy in range(12)]
+
+            # RDT PfPR
+            d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]  # remove final five days: assume final five days have same average as rest of month
+            # use weighted average for combined age groups
+            pfpr_rdt_Under1 = [x[0] for x in d]
+            pfpr_rdt_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) / (pop[yy][0] + pop[yy][1]) for yy in range(12)]
+            pfpr_rdt_5to15 = [x[2] for x in d]
+            pfpr_rdt_15to30 = [x[3] for x in d]
+            pfpr_rdt_30to50 = [x[4] for x in d]
+            pfpr_rdt_50plus = [x[5] for x in d]
+            pfpr_rdt_allAges = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1]) + (d[yy][2] * pop[yy][2]) +
+                             (d[yy][3] * pop[yy][3]) + (d[yy][4] * pop[yy][4]) + (d[yy][5] * pop[yy][5])) /
+                            (pop[yy][0] + pop[yy][1] + pop[yy][2] + pop[yy][3] + pop[yy][4] + pop[yy][5]) for yy in range(12)]
 
             # clinical cases
-            d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][
-                :12]  # remove final five days: assume final five days have same average as rest of month
+            d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
             # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
             clinical_cases_Under1 = [d[yy][0] * pop[yy][0] * 30 / 365 for yy in range(12)]
-            clinical_cases_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) * 30 / 365 for
-                                     yy in range(12)]
+            clinical_cases_Under5 = [((d[yy][0] * pop[yy][0]) + (d[yy][1] * pop[yy][1])) * 30 / 365 for yy in range(12)]
             clinical_cases_5to15 = [d[yy][2] * pop[yy][2] * 30 / 365 for yy in range(12)]
             clinical_cases_15to30 = [d[yy][3] * pop[yy][3] * 30 / 365 for yy in range(12)]
             clinical_cases_30to50 = [d[yy][4] * pop[yy][4] * 30 / 365 for yy in range(12)]
@@ -578,6 +593,7 @@ class MonthlyNewInfectionsAnalyzer_byAgeGroup_withU1U5(IAnalyzer):
                                     'Pop': (pop_Under1 + pop_Under5 + pop_5to15 + pop_15to30 + pop_30to50 + pop_50plus + pop_allAges),
                                     'New Infections': (new_infections_Under1 + new_infections_Under5 + new_infections_5to15 + new_infections_15to30 + new_infections_30to50 + new_infections_50plus + new_infections_allAges),
                                     'PfPR': (pfpr_Under1 + pfpr_Under5 + pfpr_5to15 + pfpr_15to30 + pfpr_30to50 + pfpr_50plus + pfpr_allAges),
+                                    'PfPR RDT': (pfpr_rdt_Under1 + pfpr_rdt_Under5 + pfpr_rdt_5to15 + pfpr_rdt_15to30 + pfpr_rdt_30to50 + pfpr_rdt_50plus + pfpr_rdt_allAges),
                                     'Clinical cases': (clinical_cases_Under1 + clinical_cases_Under5 + clinical_cases_5to15 + clinical_cases_15to30 + clinical_cases_30to50 + clinical_cases_50plus + clinical_cases_allAges),
                                     'Severe cases': (severe_cases_Under1 + severe_cases_Under5 + severe_cases_5to15 + severe_cases_15to30 + severe_cases_30to50 + severe_cases_50plus + severe_cases_allAges)
                                     })
@@ -772,8 +788,7 @@ class MonthlyNewInfectionsAnalyzerByAge(IAnalyzer):
 
             for aa in range(len(data[fname]['Metadata']['Age Bins'])):
                 # population size
-                pop = data[fname]['DataByTimeAndAgeBins']['Average Population by Age Bin'][
-                      :12]  # remove final five days: assume final five days have same average as rest of month
+                pop = data[fname]['DataByTimeAndAgeBins']['Average Population by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
                 pop_monthly = [x[aa] for x in pop]
 
                 # new infections
@@ -783,19 +798,20 @@ class MonthlyNewInfectionsAnalyzerByAge(IAnalyzer):
                 new_infections_monthly = [x[aa] for x in d]
 
                 # PfPR
-                d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][
-                    :12]  # remove final five days: assume final five days have same average as rest of month
+                d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
                 pfpr_monthly = [x[aa] for x in d]
 
+                # RDT PfPR
+                d = data[fname]['DataByTimeAndAgeBins']['PfPR by Age Bin-HRP2'][:12]  # remove final five days: assume final five days have same average as rest of month
+                pfpr_rdt_monthly = [x[aa] for x in d]
+
                 # clinical cases
-                d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][
-                    :12]  # remove final five days: assume final five days have same average as rest of month
+                d = data[fname]['DataByTimeAndAgeBins']['Annual Clinical Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
                 # adjust the per-person annualized number (the reported value) to get the total number of clinical cases in that age group in a month
                 clinical_cases_monthly = [d[yy][aa] * pop[yy][aa] * 30 / 365 for yy in range(12)]
 
                 # severe cases
-                d = data[fname]['DataByTimeAndAgeBins']['Annual Severe Incidence by Age Bin'][
-                    :12]  # remove final five days: assume final five days have same average as rest of month
+                d = data[fname]['DataByTimeAndAgeBins']['Annual Severe Incidence by Age Bin'][:12]  # remove final five days: assume final five days have same average as rest of month
                 # adjust the per-person annualized number (the reported value) to get the total number of severe cases in that age group in a month
                 severe_cases_monthly = [d[yy][aa] * pop[yy][aa] * 30 / 365 for yy in range(12)]
 
@@ -805,6 +821,7 @@ class MonthlyNewInfectionsAnalyzerByAge(IAnalyzer):
                                         'Pop': pop_monthly,
                                         'New Infections': new_infections_monthly,
                                         'PfPR': pfpr_monthly,
+                                        'PfPR RDT': pfpr_rdt_monthly,
                                         'Clinical cases': clinical_cases_monthly,
                                         'Severe cases': severe_cases_monthly
                                         })

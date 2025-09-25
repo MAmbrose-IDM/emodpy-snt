@@ -45,7 +45,7 @@ def _post_run(params, manifest, experiment, suite_id, tracking_file, **kwargs):
         # replace with local analyzer script if needed
         #analyzer_script = os.path.join(manifest.CURRENT_DIR, "..", "analyzers", "post_analysis.py")
 
-        ssmt_log = os.path.abspath(os.path.join(manifest.CURRENT_DIR, "..", "logs", f"ssmt_analyzer_{experiment.name}_{experiment.id}.log"))
+        ssmt_log = os.path.abspath(os.path.join(manifest.TRACKING_DIR, "..", "logs", f"ssmt_analyzer_{experiment.name}_{experiment.id}.log"))
 
         os.environ["NO_COLOR"] = "1"  # disable color in subprocess's log
         # run ssmt (or local analyzer) subprocess in background
@@ -85,7 +85,7 @@ def post_run(params, manifest, experiment, suite_id, tracking_file, **kwargs):
         time_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         update_suite_tracking(experiment, suite, params.experiment_type, tracking_file, time_stamp)
         # Signal to analyzer manager
-        queue_dir = os.path.join(manifest.CURRENT_DIR, "..", "analyzer_queue")
+        queue_dir = os.path.join(manifest.TRACKING_DIR, "analyzer_queue")
         os.makedirs(queue_dir, exist_ok=True)
         flag_file = os.path.abspath(os.path.join(queue_dir, f"exp_{experiment.id}.ready"))
 
@@ -156,7 +156,7 @@ def run_experiment(platform, params, manifest, print_params_fn, suite_id, tracki
 
     except Exception as e:
         log(f"Experiment run failed: {e}")
-        with open(os.path.join(manifest.CURRENT_DIR, "failed_experiments.log"), "a") as f:
+        with open(os.path.join(manifest.TRACKING_DIR, "failed_experiments.log"), "a") as f:
             f.write(f"{params.scenario_fname}, index {params.scen_index} failed for exp {experiment}: {e}\n")
 
 

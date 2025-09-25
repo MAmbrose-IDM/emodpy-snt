@@ -7,10 +7,9 @@ import argparse
 from idmtools.core.platform_factory import Platform
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from run_simulation_helper.simulation_helper import  run_experiment, log
+from snt.helpers_run_simulation import  run_experiment, log
 
 tracking_file = os.path.join(manifest.CURRENT_DIR, "..", f"suite_tracking_{params.experiment_type}.csv")
-
 
 def _print_params():
     """
@@ -22,6 +21,7 @@ def _print_params():
     print("num_seeds: ", params.num_seeds)
     print("years: ", params.years)
     print("pull_from_serialization: ", params.pull_from_serialization)
+
 
 if __name__ == "__main__":
     """
