@@ -20,6 +20,7 @@ def update_basic_params(config, manifest, project_path):
     config.parameters.Enable_Vector_Species_Report = 0
     config.parameters.Enable_Property_Output = 0
     config.parameters.Enable_Demographics_Risk = 1
+    # config.parameters.Enable_Demographics_Birth = 1  # TODO: turn this on for future projects!
     config.parameters.Report_Detection_Threshold_Blood_Smear_Parasites = 0
     config.parameters.Report_Parasite_Smear_Sensitivity = 0.01  # number of microliters of blood examined
     config.parameters.Incubation_Period_Distribution = 'CONSTANT_DISTRIBUTION'
