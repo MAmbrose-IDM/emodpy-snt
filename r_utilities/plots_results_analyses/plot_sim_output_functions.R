@@ -29,7 +29,7 @@ save_plots = TRUE
 plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins, 
                                          barplot_start_year, barplot_end_year, 
                                          pyr, chw_cov,
-                                         scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, separate_plots_flag=FALSE, show_error_bar=TRUE, align_seeds=TRUE,
+                                         scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, separate_plots_flag=FALSE, standard_max_y = 0.1, show_error_bar=TRUE, align_seeds=TRUE,
                                          include_to_present=TRUE, burden_metric_subset=c()){
   admin_pop = read.csv(pop_filepath)
   
@@ -72,12 +72,11 @@ plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, di
   relative_burden_all_df$scenario = factor(relative_burden_all_df$scenario, levels=scenario_names[comparison_start_index:length(scenario_names)])
   
   # get minimum and maximum reductions - these will be used if they are smaller / greater than the current min/max
-  standard_min_x = 0
-  standard_max_x = 0.1
+  standard_min_y = 0
   cur_min = min(relative_burden_all_df[,2:(1+length(burden_colnames))])
   cur_max = max(relative_burden_all_df[,2:(1+length(burden_colnames))])
-  if(cur_min < standard_min_x) standard_min_x = cur_min
-  if(cur_max > standard_max_x) standard_max_x = cur_max
+  if(cur_min < standard_min_y) standard_min_y = cur_min
+  if(cur_max > standard_max_y) standard_max_y = cur_max
   
   gg_list = list()
   for(bb in 1:length(burden_colnames)){
@@ -93,7 +92,7 @@ plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, di
     
     gg_list[[bb]] = ggplot(rel_burden_agg) + 
       geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
-      scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
       ylab('Percent reduction') + 
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
@@ -286,12 +285,12 @@ plot_difference_burden_barplots = function(sim_future_output_dir, pop_filepath, 
   difference_burden_all_df$scenario = factor(difference_burden_all_df$scenario, levels=scenario_names[comparison_start_index:length(scenario_names)])
   
   # get minimum and maximum reductions - these will be used if they are smaller / greater than the current min/max
-  standard_min_x = 0
-  standard_max_x = 0.1
+  standard_min_y = 0
+  standard_max_y = 0.1
   cur_min = min(difference_burden_all_df[,2:(1+length(burden_colnames))])
   cur_max = max(difference_burden_all_df[,2:(1+length(burden_colnames))])
-  if(cur_min < standard_min_x) standard_min_x = cur_min
-  if(cur_max > standard_max_x) standard_max_x = cur_max
+  if(cur_min < standard_min_y) standard_min_y = cur_min
+  if(cur_max > standard_max_y) standard_max_y = cur_max
   
   gg_list = list()
   for(bb in 1:length(burden_colnames)){
@@ -307,7 +306,7 @@ plot_difference_burden_barplots = function(sim_future_output_dir, pop_filepath, 
     
     gg_list[[bb]] = ggplot(rel_burden_agg) + 
       geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
-      scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
       ylab('Burden averted') + 
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
@@ -431,12 +430,12 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
   rel_burden_agg$scenario_name = factor(rel_burden_agg$scenario_name, levels=experiment_names_with)
 
   # get minimum and maximum reductions - these will be used if they are smaller / greater than the current min/max
-  standard_min_x = 0
-  standard_max_x = default_ylim_max
+  standard_min_y = 0
+  standard_max_y = default_ylim_max
   cur_min = min(rel_burden_agg[,2:4])
   cur_max = max(rel_burden_agg[,2:4])
-  if(cur_min < standard_min_x) standard_min_x = cur_min
-  if(cur_max > standard_max_x) standard_max_x = cur_max
+  if(cur_min < standard_min_y) standard_min_y = cur_min
+  if(cur_max > standard_max_y) standard_max_y = cur_max
   if(any(is.na(scenario_barfill))){
     scenario_barfill = rep('none', length(unique(rel_burden_agg$scenario_name)))
     names(scenario_barfill) = unique(rel_burden_agg$scenario_name)
@@ -444,7 +443,7 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
   # original without shading:
   # gg = ggplot(rel_burden_agg) +
   #   geom_bar(aes(x=burden_metric, y=mean_rel, fill=scenario_name), stat='identity', position="dodge") +
-  #   scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+  #   scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
   #   ylab(paste0('Percent reduction in burden \n ((without ', intervention_name, ' - with ', intervention_name, ') / without ', intervention_name, ') * 100')) +
   #   geom_hline(yintercept=0, color='black') +
   #   ggtitle(paste0('Comparison of burden in proposed ', intervention_name, ' districts')) +
@@ -456,7 +455,7 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
   
   gg = ggplot(rel_burden_agg) + 
     # geom_bar(aes(x=burden_metric, y=mean_rel, fill=scenario_name, pattern=scenario_name), stat='identity', position="dodge") +
-    scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+    scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
     ylab(paste0('Percent reduction in burden \n ((without ', intervention_name, ' - with ', intervention_name, ') / without ', intervention_name, ') * 100')) + 
     geom_hline(yintercept=0, color='black') +
     ggtitle(paste0('Comparison of burden in proposed ', intervention_name, ' districts')) + 
@@ -647,12 +646,12 @@ plot_barplot_impact_two_specific_interventions = function(sim_future_output_dir,
   rel_burden_agg$burden_metric = factor(rel_burden_agg$burden_metric, levels=burden_metric_names)
 
   # get minimum and maximum reductions - these will be used if they are smaller / greater than the current min/max
-  standard_min_x = 0
-  standard_max_x = 0.2
+  standard_min_y = 0
+  standard_max_y = 0.2
   cur_min = min(rel_burden_agg[,2:4])
   cur_max = max(rel_burden_agg[,2:4])
-  if(cur_min < standard_min_x) standard_min_x = cur_min
-  if(cur_max > standard_max_x) standard_max_x = cur_max
+  if(cur_min < standard_min_y) standard_min_y = cur_min
+  if(cur_max > standard_max_y) standard_max_y = cur_max
 
   
   # create list where each element is a barplot corresponding to one of the interventions in intervention_strings
@@ -660,7 +659,7 @@ plot_barplot_impact_two_specific_interventions = function(sim_future_output_dir,
   for(jj in 1:length(intervention_strings)){
     gg = ggplot(rel_burden_agg[rel_burden_agg$intervention_info == intervention_strings[jj],]) +
       geom_bar(aes(x=burden_metric, y=mean_rel, fill=scenario_name), stat='identity', position="dodge") +
-      scale_y_continuous(labels=percent_format(), limits=c(standard_min_x, standard_max_x)) +   # turn into percent reduction
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +   # turn into percent reduction
       ylab(paste0('Percent reduction in burden \n ((without ', intervention_strings[jj], ' - with ', intervention_name, ') / without ', intervention_strings[jj], ') * 100')) +
       geom_hline(yintercept=0, color='black') +
       ggtitle(paste0('Comparison of burden in proposed ', intervention_name, ' districts')) +
