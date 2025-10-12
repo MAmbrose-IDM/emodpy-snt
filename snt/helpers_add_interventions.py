@@ -7,6 +7,7 @@ from emodpy_malaria.interventions.treatment_seeking import add_treatment_seeking
 from emodpy_malaria.interventions.usage_dependent_bednet import add_scheduled_usage_dependent_bednet, \
     add_triggered_usage_dependent_bednet
 from emodpy_malaria.interventions.irs import add_scheduled_irs_housing_modification
+from emodpy_malaria.interventions.larvicide import add_larvicide
 from emod_api.interventions.common import change_individual_property_triggered
 from emodpy_malaria.interventions.drug_campaign import add_drug_campaign
 from emodpy_malaria.interventions.diag_survey import add_diagnostic_survey
@@ -18,7 +19,7 @@ from emodpy_malaria.interventions.common import add_triggered_campaign_delay_eve
 from emod_api.interventions.common import BroadcastEvent, PropertyValueChanger, DelayedIntervention, change_individual_property_scheduled
 
 def tryread_intervention_csv_from_scen_df(project_path, scen_df, scen_index, intervention_colname):
-    if (pd.isna(scen_df.at[scen_index, intervention_colname])) or ((scen_df.at[scen_index, intervention_colname] == '')):
+    if ((intervention_colname not in scen_df.columns.values) or pd.isna(scen_df.at[scen_index, intervention_colname])) or ((scen_df.at[scen_index, intervention_colname] == '')):
         df = pd.DataFrame()
     else:
         try:
@@ -131,6 +132,25 @@ def add_hfca_irs(campaign, irs_df, hfca, seed_index=0):
                                                killing_decay_time_constant=row['mean_duration'])  # !! this was 'initial_kill' before, but I think that was an error in the translation from dtktools?
 
     return len(irs_df)
+
+
+# larviciding
+def add_hfca_lsm(campaign, lsm_df, hfca, seed_index=0):
+    lsm_df = lsm_df[lsm_df['admin_name'].str.upper() == hfca.upper()]
+    if 'seed' in lsm_df.columns.values:
+        lsm_df = lsm_df[lsm_df['seed'] == seed_index]
+    for r, row in lsm_df.iterrows():
+        # note that the add_larvicide() function has an error such that no matter what you specify for num_repetions and timesteps_between_reps, it only delivers the intervention once,
+        #   so will add each campaign separately here until that is fixed
+        for ii in range(row['num_repetitions']):
+            add_larvicide(campaign, start_day=row['simday'] + ii * row['timesteps_between_reps'],
+                          spray_coverage=row['effective_coverage'],
+                          killing_effect=row['killing_effect'],
+                          habitat_target="ALL_HABITATS",
+                          box_duration=row['timesteps_between_reps'],
+                          decay_time_constant=row['decay_time_constant'])
+
+    return len(lsm_df)
 
 
 # all itn
@@ -1148,7 +1168,7 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
                           itn_decay_params=pd.DataFrame(),
                           itn_anc_adult_birthday_years=None, itn_epi_df=pd.DataFrame(),
                           itn_chw_df=pd.DataFrame(), itn_chw_annual_df=pd.DataFrame(),
-                          irs_df=pd.DataFrame(), smc_df=pd.DataFrame(), pmc_df=pd.DataFrame(), vacc_df=pd.DataFrame(),
+                          irs_df=pd.DataFrame(), lsm_df=pd.DataFrame(), smc_df=pd.DataFrame(), pmc_df=pd.DataFrame(), vacc_df=pd.DataFrame(),
                           vacc_char_df=pd.DataFrame(), vacc_df_2=pd.DataFrame(), epi_vacc_df=pd.DataFrame(), use_same_access_ips_all_ages=False,
                           sp_resist_day1_multiply=1, adherence_multiplier=1, use_smc_vaccine_proxy=False):
     event_list = []
@@ -1157,6 +1177,8 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
         has_irs = add_hfca_irs(campaign, irs_df, hfca, seed_index=seed_index)
         if has_irs > 0:
             event_list.append('Received_IRS')
+    if not lsm_df.empty:
+        has_lsm = add_hfca_lsm(campaign, lsm_df, hfca, seed_index=seed_index)
     if not smc_df.empty:
         has_smc = update_smc_access_ips(campaign, smc_df=smc_df, hfca=hfca, use_same_access_ips_all_ages=use_same_access_ips_all_ages)
         if use_smc_vaccine_proxy:
