@@ -141,12 +141,14 @@ def monthlySevereTreatedByAgeAnalyzer(output_path, start_year):
             d = output_data[(output_data['age in years'] < agemax) & (output_data['age in years'] > agemin)]
             g = d.groupby(['year', 'month'])['Event_Name'].agg(len).reset_index()
             g = g.rename(columns={'Event_Name': 'Num_%s_Received_Severe_Treatment' % agelabel})
+            if g.empty:
+                g = pd.DataFrame({'year': [start_year], 'month': [1], ('Num_%s_Received_Severe_Treatment' % agelabel): [0]})
             if simdata.empty:
                 simdata = g
             else:
-                if not g.empty:
-                    simdata = pd.merge(left=simdata, right=g, on=['year', 'month'], how='outer')
-                    simdata = simdata.fillna(0)
+                simdata = pd.merge(left=simdata, right=g, on=['year', 'month'], how='outer')
+                simdata = simdata.fillna(0)
+
 
     else:
         simdata = pd.DataFrame(columns=['year', 'month',
