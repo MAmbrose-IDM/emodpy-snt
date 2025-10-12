@@ -140,7 +140,7 @@ def add_hfca_lsm(campaign, lsm_df, hfca, seed_index=0):
     if 'seed' in lsm_df.columns.values:
         lsm_df = lsm_df[lsm_df['seed'] == seed_index]
     for r, row in lsm_df.iterrows():
-        # note that the add_larvicide() function has an error such that no matter what you specify for num_repetions and timesteps_between_reps, it only delivers the intervention once,
+        # note that the add_larvicide() function has an error such that no matter what you specify for num_repetitions and timesteps_between_reps, it only delivers the intervention once,
         #   so will add each campaign separately here until that is fixed
         for ii in range(row['num_repetitions']):
             add_larvicide(campaign, start_day=row['simday'] + ii * row['timesteps_between_reps'],

@@ -146,7 +146,6 @@ def monthlySevereTreatedByAgeAnalyzer(output_path, start_year):
             if simdata.empty:
                 simdata = g
             else:
-                # if not g.empty:
                 simdata = pd.merge(left=simdata, right=g, on=['year', 'month'], how='outer')
                 simdata = simdata.fillna(0)
 
