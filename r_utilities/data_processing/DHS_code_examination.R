@@ -11,7 +11,7 @@ library(sp)
 
 
 country = 'NGA'  #'SLE'  # 'BDI'
-year_index = 4
+year_index = 6
 
 if(country =='NGA'){
   user = Sys.getenv("USERNAME")
@@ -24,8 +24,8 @@ if(country =='NGA'){
   # # read in shapefile with admin boundaries
   # shapefile_filepath = paste0(base_hbhi_filepath, '/SpatialClustering/reference_rasters_shapefiles/NGA_DS_clusteringProjection.shp')
   # admin_shape = shapefile(shapefile_filepath)
-  dhs_years = c(2010, 2013, 2015, 2018, 2021)
-  dhs_year_dirs = c('NG_2010_MIS_06192019', 'NG_2013_DHS_06192019', 'NG_2015_MIS_06192019', 'NG_2018_DHS_11072019_1720_86355', 'NG_2021_MIS_12062022_90_72922')
+  dhs_years = c(2010, 2013, 2015, 2018, 2021 ,2024)
+  dhs_year_dirs = c('NG_2010_MIS_06192019', 'NG_2013_DHS_06192019', 'NG_2015_MIS_06192019', 'NG_2018_DHS_11072019_1720_86355', 'NG_2021_MIS_12062022_90_72922', 'NG_2024_DHS_10212025_158_158063')
   cur_year = dhs_years[year_index]
   cur_year_dir = dhs_year_dirs[year_index]
   
@@ -40,8 +40,8 @@ if(country =='NGA'){
   # locations = data.frame(clusterid = locations_shp$DHSCLUST, latitude=locations_shp$LATNUM, longitude=locations_shp$LONGNUM)
   
   # get list of relevant dta files
-  dta_filepaths = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.DTA", full.names=TRUE, recursive=TRUE)
-  dta_filepaths = dta_filepaths[substr(dta_filepaths, nchar(dta_filepaths)-3+1, nchar(dta_filepaths)) == 'DTA']
+  dta_filepaths = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.DTA|.dta", full.names=TRUE, recursive=TRUE)
+  dta_filepaths = dta_filepaths[substr(dta_filepaths, nchar(dta_filepaths)-3+1, nchar(dta_filepaths)) %in% c('DTA', 'dta')]
   dta_list = list()
   for(dd in 1:length(dta_filepaths)){
     dta_cur = read.dta(dta_filepaths[dd])
@@ -102,8 +102,8 @@ art_codes = c("ml13e", "ml13aa", "ml13ab")
 non_art_codes = c("ml13a", "ml13b", "ml13c", "ml13d", "ml13da", "ml13h") # country-specific antimalarial: "ml13g", "ml13f", 
 
 # household codes 
-house_codes = c('hhid','hvidx','hv001','hv006','hv007','hv105','hml20','hml32','hml32a')
-house_filenum = 8 # 2010:5, 2013:7, 2015:5, 2018:8, 2021: 5
+house_codes = c('hhid','hvidx','hv001','hv006','hv007', 'hv024','hv105','hml20','hml32','hml32a')
+house_filenum = 7 # 2010:5, 2013:7, 2015:5, 2018:8, 2021: 5, 2024: 7
 dta_filepaths[house_filenum]
 View(dta_list[[house_filenum]][1:50,house_codes[house_codes %in% colnames(dta_list[[house_filenum]])]])
 for(ii in 6:length(house_codes)){
@@ -135,8 +135,7 @@ dta_filepaths[ind_filenum]
 View(dta_list[[ind_filenum]][1:50,ind_codes[ind_codes %in% colnames(dta_list[[ind_filenum]])]])
 
 
-
-dta_filepaths[4]
+dta_filepaths[7]
 ########################
 # PfPR (microscopy)
 ########################
@@ -172,7 +171,8 @@ find_code_locations(dta_list=dta_list, code_str='hml23')
 ######################
 # treatment-seeking
 #####################
-find_code_locations(dta_list=dta_list, code_str='h32z')
+find_code_locations(dta_list=dta_list, code_str='h32z')  # CM
+find_code_locations(dta_list=dta_list, code_str='h32y')  # received_treatment
 
 ############################################
 # receive heel prick given seek treatment
