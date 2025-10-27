@@ -779,7 +779,7 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
     # The current approach is to use the national fraction of individuals who are given ACTs among those who receive any antimalarial (upper estimate) or among those who seek treatment (lower estimate), multiplied by the local treatment-seeking rate
     use_art_probs = TRUE  # calculate effective treatment rates using rates of receiving ACT
     cm_by_sector = TRUE  # calculate rates of treatment-seeking and rates of receiving ACT separately for each treatment sector
-    geopolitical_zone = FALSE  # estimate ACT rates by gepolitical zone if TRUE, otherwise get national average. note: only available for cm_by_sector==TRUE
+    geopolitical_zone = FALSE  # estimate ACT rates by geopolitical zone if TRUE, otherwise get national average. note: only available for cm_by_sector==TRUE
     use_cm_probs = TRUE  # if cm is not specified by sector, set which of the variables for treatment-seeking is used: any facility (TRUE) or any treatment/advice aside from traditional (FALSE)
     if(use_art_probs){  # calculate effective treatment rates using probability individual received ACT
       if(cm_by_sector){ # separate by treatment sector
@@ -1567,7 +1567,7 @@ extract_frac_itn_from_campaign_by_state = function(hbhi_dir, dta_dir, years, arc
       }
     }
   }
-  ggplot(campaign_source_all[campaign_source_all$year != 2023,], aes(x=State, y=frac_campaign, fill=as.factor(year))) +  
+  ggplot(campaign_source_all, aes(x=State, y=frac_campaign, fill=as.factor(year))) +  
     geom_col(position='dodge')+
     labs(x = "State", y = "Fraction of ITNs from mass campaign") +
     theme_minimal()+

@@ -40,7 +40,7 @@ if(country =='NGA'){
   # locations = data.frame(clusterid = locations_shp$DHSCLUST, latitude=locations_shp$LATNUM, longitude=locations_shp$LONGNUM)
   
   # get list of relevant dta files
-  dta_filepaths = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="*.DTA|.dta", full.names=TRUE, recursive=TRUE)
+  dta_filepaths = list.files(path=paste0(dta_dir, '/', cur_year_dir), pattern="\\.(DTA|dta)$", full.names=TRUE, recursive=TRUE)
   dta_filepaths = dta_filepaths[substr(dta_filepaths, nchar(dta_filepaths)-3+1, nchar(dta_filepaths)) %in% c('DTA', 'dta')]
   dta_list = list()
   for(dd in 1:length(dta_filepaths)){
