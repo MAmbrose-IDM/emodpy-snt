@@ -150,11 +150,33 @@ add_state_DHS_ITN = function(additional_ITN_DHS_years, additional_ITN_DHS_files,
 ##############################################################
 # get state-level fraction of ITNs that came from mass distributions
 ##############################################################
-get_itn_cov_attrib_campaigns = function(net_dhs_info, hbhi_dir){
+get_itn_cov_attrib_campaigns = function(net_dhs_info, hbhi_dir, years=NA, overlap_dhs_years=NA){
   campaign_source_all = read.csv(paste0(hbhi_dir, '/estimates_from_DHS/itn_source_state_level_all_years.csv')) %>%
     dplyr::select(State, year, frac_campaign)
   net_dhs_info$year = year(net_dhs_info$date)
   all_survey_years = unique(net_dhs_info$year)
+  
+  # some DHS/MIS surveys span over multiple years. in these cases, we want the fraction of ITNs from campaign to apply to both years
+  if(any(!is.na(overlap_dhs_years))){
+    # create a lookup table to see the additional years for each survey
+    additional_year_lookup = data.frame(years, overlap_dhs_years)
+    lookup_non_na = additional_year_lookup %>% filter(!is.na(overlap_dhs_years))
+    
+    campaign_source_all = lookup_non_na %>%
+      # keep only rows with non-missing years and overlap_dhs_years
+      filter(!is.na(years), !is.na(overlap_dhs_years)) %>%
+      group_map(~ {
+        orig_year <- .x$years[1]
+        new_year  <- .x$overlap_dhs_years[1]
+        
+        campaign_source_all %>%
+          filter(year == orig_year) %>%
+          mutate(year = new_year)
+      }) %>%
+      bind_rows() %>% # combine all the new rows
+      bind_rows(campaign_source_all) %>%  # add to the original df
+      distinct() 
+  }
   
   # some survey years do not have estimates of the fraction of ITNs from campaigns. in those years, we use the average for each state when data is available
   campaign_complete = campaign_source_all %>%
@@ -167,7 +189,7 @@ get_itn_cov_attrib_campaigns = function(net_dhs_info, hbhi_dir){
     rename(NOMREGION = State)
 
   # merge into the DHS coverage estimates df and adjust the coverage rates to reflect coverage from campaign-distributed ITNs
-  net_campaign_dhs_info = merge(net_dhs_info, campaign_complete, all=TRUE) %>%
+  net_campaign_dhs_info = merge(net_dhs_info, campaign_complete, all.x=TRUE) %>%
     mutate(across(contains("_rate"), ~ .x * frac_campaign))
   return(net_campaign_dhs_info)
 }
@@ -229,7 +251,7 @@ aggregate_itn_dhs_data_across_years = function(hbhi_dir, years, itn_variables, m
 create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn_distributions_by_admin_filename, grid_layout_state_locations, ds_pop_df_filename, sim_start_year=2010, maximum_coverage=0.9,
                                                     seasonality_monthly_scalar,  # adjust net usage for seasonality
                                                     years, min_num_total=30, default_first_coverage=0.1, itn_variable_base='itn_u5', save_age_ratio_plots=FALSE, save_timeseries_coverage_plots=FALSE,
-                                                    additional_ITN_DHS_years=c(), additional_ITN_DHS_files=c()
+                                                    additional_ITN_DHS_years=c(), additional_ITN_DHS_files=c(), overlap_dhs_years=NA
 ){
   # get the distribution dates for each admin
   itn_distributions_by_admin = read.csv(itn_distributions_by_admin_filename) 
@@ -244,7 +266,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
   net_dhs_info$date = as.Date(net_dhs_info$date, tryFormats=c('%m/%d/%Y', '%m-%d-%Y', '%Y-%m-%d'))  
   
   # adjust DHS/MIS survey coverage to capture the ITNs from mass campaigns
-  net_dhs_info = get_itn_cov_attrib_campaigns(net_dhs_info=net_dhs_info, hbhi_dir=hbhi_dir)
+  net_dhs_info = get_itn_cov_attrib_campaigns(net_dhs_info=net_dhs_info, hbhi_dir=hbhi_dir, years=years, overlap_dhs_years=overlap_dhs_years)
 
   # read in sampled retention lognormal mus and sigmas and take the first (expected) value
   net_discard_decay = read.csv(paste0(hbhi_dir, '/simulation_inputs/itn_discard_decay_params.csv'))

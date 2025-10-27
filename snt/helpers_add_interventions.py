@@ -147,7 +147,7 @@ def add_hfca_lsm(campaign, lsm_df, hfca, seed_index=0):
                           spray_coverage=row['effective_coverage'],
                           killing_effect=row['killing_effect'],
                           habitat_target="ALL_HABITATS",
-                          box_duration=row['timesteps_between_reps'],
+                          box_duration=row['box_duration'],
                           decay_time_constant=row['decay_time_constant'])
 
     return len(lsm_df)
