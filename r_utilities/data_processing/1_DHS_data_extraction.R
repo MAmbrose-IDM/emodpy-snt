@@ -779,7 +779,7 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
     # The current approach is to use the national fraction of individuals who are given ACTs among those who receive any antimalarial (upper estimate) or among those who seek treatment (lower estimate), multiplied by the local treatment-seeking rate
     use_art_probs = TRUE  # calculate effective treatment rates using rates of receiving ACT
     cm_by_sector = TRUE  # calculate rates of treatment-seeking and rates of receiving ACT separately for each treatment sector
-    geopolitical_zone = TRUE  # estimate ACT rates by gepolitical zone if TRUE, otherwise get national average. note: only available for cm_by_sector==TRUE
+    geopolitical_zone = FALSE  # estimate ACT rates by gepolitical zone if TRUE, otherwise get national average. note: only available for cm_by_sector==TRUE
     use_cm_probs = TRUE  # if cm is not specified by sector, set which of the variables for treatment-seeking is used: any facility (TRUE) or any treatment/advice aside from traditional (FALSE)
     if(use_art_probs){  # calculate effective treatment rates using probability individual received ACT
       if(cm_by_sector){ # separate by treatment sector
@@ -908,8 +908,11 @@ extract_DHS_data = function(hbhi_dir, dta_dir, years, admin_shape, ds_pop_df_fil
             act_middle_rate_private_informal = act_low_private_informal_rate * (1-cm_high_estimate_weight) + act_high_private_informal_rate * (cm_high_estimate_weight)
           )
         
-        write.csv(act_agg_results, paste0(hbhi_dir, '/estimates_from_DHS/DHS_ACT_prob_estimates_by_sector_and_zone_', years[yy], '.csv'))
-        
+        if(geopolitical_zone){
+          write.csv(act_agg_results, paste0(hbhi_dir, '/estimates_from_DHS/DHS_ACT_prob_estimates_by_sector_and_zone_', years[yy], '.csv'))
+        } else{
+          write.csv(act_agg_results, paste0(hbhi_dir, '/estimates_from_DHS/DHS_ACT_prob_estimates_by_sector_', years[yy], '.csv'))
+        }
         ### calculate effective treatment rate, aggregated across sectors
         admin_sums = admin_sums %>% dplyr::select(-c(art_low_public_num_total, art_low_private_formal_num_total, art_low_private_informal_num_total,
                                                      art_high_public_num_total, art_high_private_formal_num_total, art_high_private_informal_num_total,
@@ -1706,6 +1709,8 @@ extract_archetype_level_DHS_data = function(hbhi_dir, dta_dir, ds_pop_df_filenam
 
 # plot coverage/prevalence values in each cluster and admin, as extracted from DHS
 plot_extracted_DHS_data = function(hbhi_dir, years, admin_shape, min_num_total=30, variables=c('mic', 'rdt','itn_all','itn_u5','itn_5_10','itn_10_15','itn_15_20','itn_o20','iptp','cm','received_treatment','sought_treatment','blood_test'), colors_range_0_to_1=NA, all_years_int_plot_panel=TRUE, separate_plots_for_each_var=TRUE, plot_separate_pdfs=FALSE, plot_vaccine=FALSE, plot_suffix=''){
+  plot_cluster_flag = TRUE
+  plot_admin_flag = TRUE
   
   if(any(is.na(colors_range_0_to_1))){
     colors_range_0_to_1 = add.alpha(pals::parula(101), alpha=0.5)
