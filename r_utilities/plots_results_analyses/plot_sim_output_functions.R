@@ -693,7 +693,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
                                              pyr='', chw_cov='',
                                              scenario_filepaths, scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, 
                                              separate_plots_flag=FALSE, extend_past_timeseries_year=NA, scenario_linetypes=NA, plot_CI=TRUE, include_U1=FALSE,
-                                             burden_metric_subset=c()){
+                                             burden_metric_subset=c(), ymax_each_burden=NA){
   
   if (!is.na(relative_year)){ if(relative_year<min_year){
     warning('specified minimum year must be <= relative year. Setting min_year to relative_year.')
@@ -880,8 +880,12 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
       scenario_linetypes = rep(1, length(unique(burden_df$scenario)))
       names(scenario_linetypes) = unique(burden_df$scenario)
     }
-    # ----- malaria burden ----- #
-    
+    # ----- plot malaria burden ----- #
+    if(length(ymax_each_burden)<bb){
+      ylim_max = NA
+    } else{
+      ylim_max = ymax_each_burden[bb]
+    }
     if(plot_by_month){
       gg_list[[bb]] = ggplot(burden_df, aes(x=as.Date(date), y=mean_burden, color=scenario)) +
         geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
@@ -891,7 +895,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
         xlab('date') + 
         ylab(paste0(gsub('\\(births\\)', '', burden_metric_name),ylab_add_component)) + 
         xlim(as.Date(paste0(min_year, '-01-01')), as.Date(paste0(max_year, '-01-01'))) +
-        coord_cartesian(ylim=c(0, NA)) +
+        coord_cartesian(ylim=c(0, ylim_max)) +
         theme_classic()+ 
         theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size))
     } else{
@@ -903,7 +907,7 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
         ylab(paste0(gsub('\\(births\\)', '', burden_metric_name), ylab_add_component)) + 
         xlim(min_year, max_year) + 
         scale_x_continuous(breaks= pretty_breaks()) +
-        coord_cartesian(ylim=c(0, NA)) +
+        coord_cartesian(ylim=c(0, ylim_max)) +
         theme_classic()+ 
         theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size))
     }
@@ -1057,13 +1061,56 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
 
-      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.7, height=8.5*0.7, units='in')
+      ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.9, height=8.5*0.9, units='in')
   }
   return(gg)
 }
 
 
 
+
+
+######################################################################
+# create csv of outputs for partners with timeseries of burden across metrics and years and scenarios
+######################################################################
+# create csv with annual average burden across specified timeseries for each state and scenario (requested by Maikore)
+# columns are scenario, State, year, PfPR_all, PfPR_U5, incidence_all, incidence_U5
+create_csv_timeseries_state_burden_each_scenario = function(sim_future_output_dir, pop_filepath,
+                                                  min_year, max_year, 
+                                                  scenario_filepaths, scenario_names, experiment_names, LLIN2y_flag=FALSE, overwrite_files=FALSE, 
+                                                  filename_suffix=''){
+  
+  # create output directories
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots'))) dir.create(paste0(sim_future_output_dir, '/_plots'))
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))) dir.create(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))
+  
+  # iterate through scenarios, storing relevant output
+  burden_df_all = data.frame()
+  for(ee in 1:length(scenario_filepaths)){
+    exp_filepath = scenario_filepaths[ee]
+    exp_name = scenario_names[ee]
+    cur_sim_output_agg = get_burden_timeseries_by_state(exp_filepath=exp_filepath, exp_name=exp_name, pop_filepath=pop_filepath, overwrite_files=overwrite_files)
+    if(nrow(burden_df_all)==0){
+      burden_df_all = cur_sim_output_agg
+    } else{
+      burden_df_all = rbind(burden_df_all, cur_sim_output_agg)
+    }
+  }
+  
+  # subset to relevant scenarios currently being compared
+  burden_df_all = burden_df_all %>% filter(scenario %in% scenario_names, year>=min_year, year<=max_year)
+  
+  # ----- malaria burden metrics to include ----- #
+  burden_metrics = c( 'PfPR_U5', 'PfPR_all', 'incidence_pp_U5', 'incidence_pp_all')#,  'total_mortality_pp_U5', 'total_mortality_pp_all')  # ,  'direct_mortality_pp_U5', 'direct_mortality_pp_all'
+  # burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence per person (U5)', 'incidence per person (all ages)', 'total mortality per person (U5)','total mortality per person (all ages)')  # ,  'direct mortality per person (U5)','direct mortality per person (all ages)'
+  colnames_include = c('scenario','State','year', burden_metrics)
+  burden_df_all = burden_df_all %>% dplyr::select(all_of(colnames_include)) %>%
+    mutate(incidence_U5 = incidence_pp_U5 * 1000,
+           incidence_all = incidence_pp_all * 1000) %>%
+    dplyr::select(-c(incidence_pp_U5, incidence_pp_all))
+  
+  write.csv(burden_df_all, paste0(sim_future_output_dir, '/_plots/timeseries_dfs/Timeseries_state_burden_each_scenario_', min_year, '_', max_year, filename_suffix,'.csv'), row.names=FALSE)
+}
 
 
 
