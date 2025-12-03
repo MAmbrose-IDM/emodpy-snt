@@ -187,8 +187,9 @@ get_itn_anc_timeseries_by_state = function(input_filepath, admin_info, end_year,
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
   if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('State' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-State)
   if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
-
+  
   input_df = merge(input_df, admin_info)
   
   # ANC ITN is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
@@ -271,6 +272,7 @@ get_itn_epi_timeseries_by_state = function(input_filepath, admin_info, end_year,
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
   if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('State' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-State)
   if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
   
   input_df = merge(input_df, admin_info)
@@ -361,7 +363,9 @@ get_smc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   input_df$u5_coverage_total = input_df$coverage_high_access_U5 * input_df$high_access_U5 + input_df$coverage_low_access_U5 * (1-input_df$high_access_U5)
   
   # get mean across rounds within a year
-  input_df <- input_df %>% dplyr::select(-State) %>% group_by(year, admin_name, seed) %>%
+  input_df = input_df %>% dplyr::select(-State) %>% 
+    filter(year>=min_year, year<=end_year) %>%
+    group_by(year, admin_name, seed) %>%
     summarise_all(mean) %>% ungroup()
   
   # create data frame with all admin-years as zeros if SMC isn't specified as given in input file
@@ -465,33 +469,52 @@ get_vacc_timeseries_by_state = function(input_filepath, admin_info, end_year, ex
   
   input_df = read.csv(input_filepath)
   if(!('seed' %in% input_df)) input_df$seed = 1
+  if('State' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-State)
   input_df = merge(input_df, admin_info)
   
   # look just at coverage for primary series
   input_df = input_df[input_df$vaccine == 'primary',]
   # true start day of administration is RTSS_day+rtss_touchpoint (due to how things are setup in campaign for birth-triggered delayed vaccine)
   input_df$simday = input_df$RTSS_day + input_df$rtss_touchpoint
-  input_df$year = round(input_df$simday/365 + min_year)
+  input_df$year = floor(input_df$simday/365) + min_year
   
-  # EPI vaccine coverage is specified only once (and then continues for remainder of simulation after the start day)
-  # NOTE: assumes same delivery dates across LGAs
-  df_repeated = input_df
-  for(rr in 1:(end_year - df_repeated$year[1])){
-    temp_year = df_repeated
-    temp_year$year = df_repeated$year + rr
-    temp_year$simday = df_repeated$simday + rr*365
-    input_df = rbind(input_df, temp_year)
+  # EPI vaccine is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
+  input_df$years_repeated = input_df$duration/365
+  if(any(input_df$years_repeated>1)){
+    cur_years = unique(input_df$year)
+    for(yy in cur_years){
+      # get first instance of this year
+      cur_year = input_df[input_df$year==yy,]
+      if(cur_year$years_repeated[1]>1){
+        for(rr in 1:(cur_year$years_repeated[1] - 1)){
+          temp_year = cur_year
+          temp_year$year = cur_year$year + rr
+          temp_year$simday = cur_year$simday + rr*365
+          input_df = rbind(input_df, temp_year)
+        }
+      }
+    }
   }
+  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
+    df_repeated = input_df[input_df$duration == -1,]
+    for(rr in 1:(end_year - df_repeated$year[1])){
+      temp_year = df_repeated
+      temp_year$year = df_repeated$year + rr
+      temp_year$simday = df_repeated$simday + rr*365
+      input_df = rbind(input_df, temp_year)
+    }
+  }
+  
   
   # # create data frame with all admin-years as zeros before start of vaccine
   # admin_years = merge(admin_info, data.frame('year'=seq(min_year, vacc_start_year-1), coverage=0), all=TRUE)
   
   # calculate values within state or admin
   if(get_state_level){
-    # get population-weighted CM coverage across admins
+    # get population-weighted coverage across admins
     input_df$multiplied_cov = input_df$coverage * input_df$pop_size
     
-    # get sum of population sizes and multiplied SMC coverage across included admins
+    # get sum of population sizes and multiplied coverage across included admins
     input_df_agg_admin <- input_df %>% dplyr::select(year, State, seed, multiplied_cov, pop_size) %>% group_by(year, State, seed) %>%
       summarise_all(sum) %>% ungroup()
     # get population-weighted U5 coverage across all included admin by dividing by sum of population sizes
@@ -535,18 +558,36 @@ get_pmc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   input_df <- input_df %>% group_by(admin_name, seed) %>%
     summarise(coverage = mean(coverage), simday=min(simday)) %>% 
     ungroup()  
-  input_df$year = round(input_df$simday/365 + min_year)
+  input_df$year = floor(input_df$simday/365) + min_year
   input_df = merge(input_df, admin_info)
   
-  # PMC coverage is specified only once (and then continues for remainder of simulation after the start day)
-  # NOTE: assumes same delivery dates across LGAs
-  df_repeated = input_df
-  for(rr in 1:(end_year - df_repeated$year[1])){
-    temp_year = df_repeated
-    temp_year$year = df_repeated$year + rr
-    temp_year$simday = df_repeated$simday + rr*365
-    input_df = rbind(input_df, temp_year)
+  # EPI PMC is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
+  input_df$years_repeated = input_df$duration/365
+  if(any(input_df$years_repeated>1)){
+    cur_years = unique(input_df$year)
+    for(yy in cur_years){
+      # get first instance of this year
+      cur_year = input_df[input_df$year==yy,]
+      if(cur_year$years_repeated[1]>1){
+        for(rr in 1:(cur_year$years_repeated[1] - 1)){
+          temp_year = cur_year
+          temp_year$year = cur_year$year + rr
+          temp_year$simday = cur_year$simday + rr*365
+          input_df = rbind(input_df, temp_year)
+        }
+      }
+    }
   }
+  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
+    df_repeated = input_df[input_df$duration == -1,]
+    for(rr in 1:(end_year - df_repeated$year[1])){
+      temp_year = df_repeated
+      temp_year$year = df_repeated$year + rr
+      temp_year$simday = df_repeated$simday + rr*365
+      input_df = rbind(input_df, temp_year)
+    }
+  }
+  
   
   # # create data frame with all admin-years as zeros before start of vaccine
   # admin_years = merge(admin_info, data.frame('year'=seq(min_year, vacc_start_year-1), coverage=0), all=TRUE)

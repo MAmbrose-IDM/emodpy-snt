@@ -56,7 +56,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_cm_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -173,7 +173,7 @@ plot_state_grid_itn_anc = function(sim_future_output_dir, pop_filepath, grid_lay
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_anc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input ITN ANC coverages
@@ -283,7 +283,7 @@ plot_state_grid_itn_epi = function(sim_future_output_dir, pop_filepath, grid_lay
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_epi_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input ITN epi coverages
@@ -396,7 +396,7 @@ plot_state_grid_smc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_smc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -509,7 +509,7 @@ plot_state_grid_itn = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_mass_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -625,7 +625,7 @@ plot_state_grid_vacc = function(sim_future_output_dir, pop_filepath, grid_layout
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_vacc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -740,7 +740,7 @@ plot_state_grid_pmc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_pmc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath)){
+  if(file.exists(timeseries_filepath) & !overwrite_files){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
