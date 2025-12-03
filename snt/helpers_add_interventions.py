@@ -897,6 +897,8 @@ def add_ds_vaccpmc(campaign, pmc_df, hfca):
     add_vaccdrug_campaign(campaign, campaign_type='PMC', start_days=list(df['simday']),
                           coverages=df['coverage'],
                           target_group=pmc_touchpoints_dict,
+                          vaccine_param_dict={'vacc_initial_effect': 0.80, 'vacc_box_duration': 20,  # old: 32, Manuela-updated for NGA: 20
+                                              'vacc_decay_duration': 9},  # old: 10, Manuela-updated for NGA: 9
                           delay_distribution_dict={'delay_distribution_name': df['distribution_name'],
                                                    'delay_distribution_mean': df['distribution_mean'],
                                                    'delay_distribution_std': df['distribution_std']},
