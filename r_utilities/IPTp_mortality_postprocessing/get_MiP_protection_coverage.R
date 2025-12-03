@@ -416,6 +416,36 @@ get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename
       # remove first column
       iptp_dose_number = iptp_dose_number[,-1]
       
+    } else if (coverage_string == 'stopAfterOneYear'){
+      # keep current values for 1 year, then discontinue
+      constant_future_values = FALSE
+      
+      # use coverage from latest year for first year of projections
+      num_years_cur_coverage = 1
+      project_coverage = iptp_coverage_df[,dim(iptp_coverage_df)[2]]
+      project_0_coverage = rep(0, length(iptp_coverage_df[,dim(iptp_coverage_df)[2]]))
+      project_dose_number = iptp_dose_number[,dim(iptp_dose_number)[2]]
+      iptp_coverage_df = data.frame('admin_name' = admin_names)
+      iptp_dose_number = data.frame('doses' = c(1,2,3))
+      for(yy in first_year:last_year){
+        if(yy < (first_year+num_years_cur_coverage)){
+          # update iptp coverage (>=1 dose)
+          new_coverage_df = data.frame(project_coverage)
+          colnames(new_coverage_df) = yy
+          iptp_coverage_df = cbind(iptp_coverage_df, new_coverage_df)
+        } else{
+          # update iptp coverage (>=1 dose)
+          new_coverage_df = data.frame(project_0_coverage)
+          colnames(new_coverage_df) = yy
+          iptp_coverage_df = cbind(iptp_coverage_df, new_coverage_df)        
+        }
+        # update iptp doses (of covered individuals, how many doses received?)
+        new_dose_df = data.frame(project_dose_number)
+        colnames(new_dose_df) = yy
+        iptp_dose_number = cbind(iptp_dose_number, new_dose_df)
+      }
+      # remove first column
+      iptp_dose_number = iptp_dose_number[,-1]
     } else if (coverage_string == 'stopAfterTwoYears'){
       # keep current values for 2 years, then discontinue
       constant_future_values = FALSE
