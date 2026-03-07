@@ -1051,8 +1051,8 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
     burden_df$code = burden_df$State
     gg = ggplot(burden_df, aes(x=year, y=mean_burden, color=scenario, linetype=scenario))+
       geom_line(linewidth=1) + 
-      scale_linetype_manual(values=scenario_linetypes) +
-      scale_color_manual(values = scenario_palette) + 
+      # scale_linetype_manual(values=scenario_linetypes) +
+      # scale_color_manual(values = scenario_palette) + 
       xlab('year') + 
       ylab(burden_ylab) + 
       coord_cartesian(ylim=c(0, ifelse(!is.na(relative_year),2,NA)), xlim=c(min_year, max_year)) + 
@@ -1251,21 +1251,24 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     # first, remove the final 'to-present' month or year - it should was overwritten in the pick-up from burn-in
     # then, add the final 'to-present' row to all future simulations for a continuous plot
     if(plot_by_month){
-      # remove excess month from to-present simulation
-      max_to_present_date = max(net_use_df$date[net_use_df$scenario == 'to-present'])
-      row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$date == max_to_present_date))
-      net_use_df = net_use_df[-row_to_remove,]
-      
-      # join past and future simulation trajectories
-      to_present_df = net_use_df[net_use_df$scenario == 'to-present',]
-      final_to_present_row = to_present_df[as.Date(to_present_df$date) == max(as.Date(to_present_df$date)),]
-      for(ss in 2:length(scenario_names)){
-        final_to_present_row$scenario = scenario_names[ss]
-        net_use_df = rbind(net_use_df, final_to_present_row)
+      if(any(net_use_df$scenario == 'to-present') & length(scenario_names)>1){
+        # remove excess month from to-present simulation
+        max_to_present_date = max(net_use_df$date[net_use_df$scenario == 'to-present'])
+        row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$date == max_to_present_date))
+        net_use_df = net_use_df[-row_to_remove,]
+        
+        # join past and future simulation trajectories
+        to_present_df = net_use_df[net_use_df$scenario == 'to-present',]
+        final_to_present_row = to_present_df[as.Date(to_present_df$date) == max(as.Date(to_present_df$date)),]
+        
+        for(ss in 2:length(scenario_names)){
+          final_to_present_row$scenario = scenario_names[ss]
+          net_use_df = rbind(net_use_df, final_to_present_row)
+        }
       }
     } else{
       # remove excess year from to-present simulation
-      if(any(net_use_df$scenario == 'to-present')){
+      if(any(net_use_df$scenario == 'to-present') & length(scenario_names)>1){
         max_to_present_date = max(net_use_df$year[net_use_df$scenario == 'to-present'])
         row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$year == max_to_present_date))
         net_use_df = net_use_df[-row_to_remove,]
@@ -1273,6 +1276,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
         # join past and future simulation trajectories
         to_present_df = net_use_df[net_use_df$scenario == 'to-present',]
         final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+        
         for(ss in 2:length(scenario_names)){
           final_to_present_row$scenario = scenario_names[ss]
           net_use_df = rbind(net_use_df, final_to_present_row)
