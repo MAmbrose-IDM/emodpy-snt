@@ -407,8 +407,9 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
     all_admins = unique(coverage_df$admin_name)
     coverage_timeseries = data.frame('admin_name'=c(), 'State'=c(), 'date'=c(), 'coverage'=c())
     first_day = as.Date('2010-01-01')
+    final_day = max(coverage_df$date)
     # date_vector = seq(first_day, as.Date('2022-01-01'), by=1)
-    date_vector = seq.Date(first_day, as.Date('2025-01-01'), by='month')
+    date_vector = seq.Date(first_day, final_day, by='month')
     timeseries_length = length(date_vector)
     for(aa in 1:length(all_admins)){
       cur_distributions = coverage_df[coverage_df$admin_name == all_admins[aa],]
