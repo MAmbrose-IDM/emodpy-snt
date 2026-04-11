@@ -322,19 +322,35 @@ build_file_path <- function(dta_dir, folder_dir, filename) {
     file.path(dta_dir, filename)
 }
 
-# Convert Date/POSIXt columns to numeric (days since 1970-01-01) before write.csv.
+# Format date columns as mm/dd/yyyy strings before write.csv, for compatibility
+# with downstream consumers (e.g. 3_sample_itn_mass_distribution_coverages.R).
+# Handles Date/POSIXt objects and numeric values (dplyr mean() on Date columns
+# returns numeric days-since-epoch, which also needs converting).
 # Inputs: df -- data frame whose column names contain 'date'
-# Returns: df with date columns coerced to numeric.
+# Returns: df with date columns as character "mm/dd/yyyy" strings.
 format_dates_for_csv <- function(df) {
   date_cols <- grep("date", colnames(df), value = TRUE, ignore.case = TRUE)
   for (col in date_cols) {
     x <- df[[col]]
     if (inherits(x, "Date") || inherits(x, "POSIXt")) {
-      df[[col]] <- as.numeric(as.Date(x))
+      df[[col]] <- format(as.Date(x), "%m/%d/%Y")
+    } else if (is.numeric(x)) {
+      # dplyr mean() on a Date column yields numeric days since 1970-01-01
+      df[[col]] <- format(as.Date(x, origin = "1970-01-01"), "%m/%d/%Y")
     }
-    # numerics are already in the correct format (days since 1970-01-01)
   }
   df
+}
+
+# Parse a mean_date column read back from CSV.
+# Handles both the current mm/dd/yyyy string format and legacy numeric
+# days-since-1970-01-01 values, so scripts work with both old and new CSVs.
+.parse_csv_date <- function(x) {
+  if (is.numeric(x)) {
+    as.Date(x, origin = "1970-01-01")
+  } else {
+    as.Date(as.character(x), tryFormats = c("%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d"))
+  }
 }
 
 
@@ -924,6 +940,8 @@ build_act_columns <- function(df,
 # Assign cluster GPS points to admin units via point-in-polygon join on admin_shape.
 # Inputs: cluster_df with latitude/longitude; admin_shape -- SpatialPolygonsDataFrame
 # Returns: cluster_df with NOMREGION and NOMDEP columns added.
+# Uses sf::st_join to avoid sp/raster/terra CRS chain which can fail when GDAL state
+# has not been primed by a prior terra::vect() or sf::st_as_sf() call in the session.
 assign_clusters_to_admins <- function(cluster_df, admin_shape,
                                       region_col = "NOMREGION",
                                       admin_col  = "NOMDEP") {
@@ -934,15 +952,24 @@ assign_clusters_to_admins <- function(cluster_df, admin_shape,
             " cluster(s) with NA coordinates before spatial join.")
     cluster_df <- cluster_df[has_coords, , drop = FALSE]
   }
-  spdf    <- sp::SpatialPointsDataFrame(
-    cluster_df[, c("longitude", "latitude")],
-    cluster_df,
-    proj4string = raster::crs(admin_shape)
+  admin_sf <- sf::st_as_sf(admin_shape)
+  if (is.na(sf::st_crs(admin_sf)) ||
+      !identical(sf::st_crs(admin_sf), sf::st_crs(4326)))
+    admin_sf <- sf::st_transform(admin_sf, 4326)
+  pts_sf <- sf::st_as_sf(cluster_df,
+                         coords = c("longitude", "latitude"),
+                         crs    = 4326,
+                         remove = FALSE)
+  joined <- suppressMessages(
+    sf::st_join(pts_sf, admin_sf[, c(region_col, admin_col)])
   )
-  joined         <- sp::over(spdf, admin_shape)
-  spdf$NOMREGION <- joined[[region_col]]
-  spdf$NOMDEP    <- joined[[admin_col]]
-  as.data.frame(spdf)
+  result           <- as.data.frame(joined)
+  result$geometry  <- NULL
+  result$NOMREGION <- result[[region_col]]
+  result$NOMDEP    <- result[[admin_col]]
+  if (region_col != "NOMREGION") result[[region_col]] <- NULL
+  if (admin_col  != "NOMDEP")    result[[admin_col]]  <- NULL
+  result
 }
 
 # Great-circle distance in km between two lat/lon pairs (vectorised).
@@ -2452,7 +2479,7 @@ extract_DHS_data <- function(
     region_sums <- compute_level_sums(cluster_df, "NOMREGION", present_vars)
     
     if ("mean_date" %in% colnames(cluster_df)) {
-      cluster_df$mean_date <- as.Date(cluster_df$mean_date, origin = "1970-01-01")
+      cluster_df$mean_date <- .parse_csv_date(cluster_df$mean_date)
       admin_sums  <- merge(admin_sums,
                            cluster_df %>% group_by(NOMREGION, NOMDEP) %>%
                              summarise(mean_date = mean(mean_date, na.rm=TRUE), .groups="drop"),
@@ -2546,7 +2573,7 @@ extract_DHS_data <- function(
       prev_arch <- read.csv(existing_arch)
       prev_arch <- prev_arch[prev_arch$year != year, ]
       if ("mean_date" %in% colnames(prev_arch))
-        prev_arch$mean_date <- as.Date(prev_arch$mean_date, origin = "1970-01-01")
+        prev_arch$mean_date <- .parse_csv_date(prev_arch$mean_date)
       arch_out <- dplyr::bind_rows(prev_arch, arch_out)
     }
     write.csv(format_dates_for_csv(as.data.frame(arch_out)),
@@ -2559,7 +2586,7 @@ extract_DHS_data <- function(
       prev <- read.csv(existing_nat)
       prev <- prev[prev$year != year, ]
       if ("mean_date" %in% colnames(prev))
-        prev$mean_date <- as.Date(prev$mean_date, origin = "1970-01-01")
+        prev$mean_date <- .parse_csv_date(prev$mean_date)
       national_out <- dplyr::bind_rows(prev, national_out)
     }
     write.csv(format_dates_for_csv(as.data.frame(national_out)),
