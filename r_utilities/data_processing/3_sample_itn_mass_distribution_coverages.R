@@ -47,8 +47,8 @@ library(tidyr)
 #   A summary data.frame comparing both methods is printed as a side effect.
 # ============================================================
 
-get_lognormal_mu_from_A_halflife = function(A_halflife_day=(2.2*365), itn_lognorm_sigma=0.8, kappa=20, match_type="median") {
-  match_type <- match.arg(match_type)
+get_lognormal_mu_from_A_halflife = function(A_halflife_day=(2.2*365), itn_lognorm_sigma=0.8, kappa=20, match_type="median", verbose=FALSE) {
+  match_type <- match.arg(match_type, c("median","mean"))
   
   # --- Derive tau from halflife and kappa ------------------------------
   # From Loss(h, kappa, tau) = 0.5:  h = tau * sqrt(log(2) / (kappa + log(2)))
@@ -85,7 +85,7 @@ get_lognormal_mu_from_A_halflife = function(A_halflife_day=(2.2*365), itn_lognor
     loss_mean        = E_T_loss,
     tau              = tau
   )
-  print(df)
+  if (verbose) print(df)
   
   if (match_type == "median") mu_m1 else mu_m2
 }
@@ -482,10 +482,14 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
     coverage_df = read.csv(paste0(hbhi_dir, '/simulation_inputs/intermediate_files/ITN_coverage/itn_mass_coverages_2010_toPresent.csv'))
     coverage_df$date = as.Date(coverage_df$date)
     coverage_df$matched_dhs_date = as.Date(coverage_df$matched_dhs_date)
+    coverage_df = coverage_df[!is.na(coverage_df$date), ]
+    if(nrow(coverage_df) == 0){
+      stop("No valid dates found in coverage_df$date after parsing.")
+    }
     all_admins = unique(coverage_df$admin_name)
     coverage_timeseries = data.frame('admin_name'=c(), 'State'=c(), 'date'=c(), 'coverage'=c())
     first_day = as.Date('2010-01-01')
-    final_day = max(coverage_df$date)
+    final_day = max(coverage_df$date, na.rm=TRUE)
     # date_vector = seq(first_day, as.Date('2022-01-01'), by=1)
     date_vector = seq.Date(first_day, final_day, by='month')
     timeseries_length = length(date_vector)

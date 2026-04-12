@@ -96,7 +96,11 @@ library(dplyr)
     if (!file.exists(dcf_path))
       stop("No .sps or .dcf layout file found for: ", dat_path)
     layout  <- .parse_dcf_layout_iptp(dcf_path)
-    col_pos <- readr::fwf_widths(layout$Len, layout$Name)
+    layout  <- layout[order(layout$Start), , drop = FALSE]
+    col_pos <- readr::fwf_positions(
+      start     = layout$Start,
+      end       = layout$Start + layout$Len - 1L,
+      col_names = layout$Name)
   }
   df <- readr::read_fwf(
     dat_path,

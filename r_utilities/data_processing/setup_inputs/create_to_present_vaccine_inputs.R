@@ -1,6 +1,9 @@
 # create_to_present_vaccine_inputs.R
 
-
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(scales)
 
 
 #=======================================#
@@ -29,14 +32,11 @@ create_vaccine_input_file = function(
   # ---- Step 1: Process DHS EPI vaccine estimates ----
   # Take minimum of vacc_dpt3 and vacc_measles rates as proxy for R21 uptake.
   # R21 requires 3 doses (like DPT3) and is given at a later age (like measles);
-  # the minimum captures both constraints on coverage. Cap at 0.8, floor at 0.01.
-  maximum_coverage = 0.8
+  # the minimum captures both constraints on coverage. Floor at 0.01.
   var_names = c('vacc_dpt3', 'vacc_measles')
   vacc_dhs = read.csv(vacc_dhs_filepath)
   vacc_dhs$admin_name = vacc_dhs$NOMDEP
-  vacc_dhs$coverage = sapply(
-    apply(vacc_dhs[, which(colnames(vacc_dhs) %in% paste0(var_names, '_rate'))], 1, min),
-    min, maximum_coverage)
+  vacc_dhs$coverage = apply(vacc_dhs[, which(colnames(vacc_dhs) %in% paste0(var_names, '_rate'))], 1, min)
   vacc_dhs = vacc_dhs[, c('admin_name', 'coverage')] %>%
     dplyr::mutate(coverage = ifelse(coverage < 0.01, 0.01, coverage)) %>%
     rename(survey_coverage_est = coverage)
@@ -186,10 +186,11 @@ create_vaccine_input_file = function(
   # ---- Step 6: Save output ----
   out_dir <- file.path(hbhi_dir, 'simulation_inputs', 'interventions_2010_toPresent')
   if (!dir.exists(out_dir)) dir.create(out_dir, recursive = TRUE)
+  out_file <- file.path(out_dir, 'vacc_2010_toPresent.csv')
   write.csv(vacc_input_df,
-            file.path(out_dir, 'vacc_2010_toPresent.csv'),
+            out_file,
             row.names = FALSE)
-  message('  [vaccine] Written ', nrow(vacc_primary_df), ' pilot admins to R21_EPI_vacc_toPresent.csv')
+  message('  [vaccine] Written ', nrow(vacc_primary_df), ' pilot admins to ', out_file)
   
   invisible(vacc_input_df)
 }
