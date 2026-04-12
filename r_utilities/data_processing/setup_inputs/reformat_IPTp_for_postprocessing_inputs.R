@@ -12,7 +12,7 @@ reformat_IPTp_input = function(hbhi_dir, ds_pop_df_filename){
   iptp_coverage_est = iptp_coverage_est[,which(colnames(iptp_coverage_est) %in% c('admin_name', 'year','IPTp_coverage'))]
   
    # reformat so that admins are rows and years are columns
-  iptp_coverage_est_wide = dcast(iptp_coverage_est, admin_name ~ year, value.var="IPTp_coverage")
+  iptp_coverage_est_wide = reshape2::dcast(iptp_coverage_est, admin_name ~ year, value.var="IPTp_coverage")
   
   # if some admin don't have IPTp, add rows with zero coverage
   if(!all(ds_pop_df$admin_name %in% iptp_coverage_est_wide$admin_name)){

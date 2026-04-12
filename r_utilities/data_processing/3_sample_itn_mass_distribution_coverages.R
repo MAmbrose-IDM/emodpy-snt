@@ -17,29 +17,106 @@ library(tidyr)
 ##############################################################
 # sample net retention times and parameterize lognormal
 ##############################################################
-# get the mu parameter for the lognormal net retention time (the function used in dtk simulations) that produces a distribution with the same mean value as the retention-time function used in Amelia's paper
-#    this value is calculated from the net halflife in the function from Amelia's paper
-#    process: 1) use median value from distribution A to get the mean value from distribution A
-#             2) find the mu lognormal parameter such that the mean of the lognormal distribution has the same mean as distribution A
-# retention-time function (1-CDF) from Amelia's paper:
-#    A(tt) = exp(18 - 18 / (1 - (tt/tau_days)^2)), 
-#    where tau_days = A_halflife_days * (1 - 18 / (18 - log(0.5)))^(-1/2)
-# retention-time probability distribution = d/dt[1-CDF] = A'(tt)
-#    A'(tt) = 18*exp(18 - 18 / (1 - (tt/tau_days)^2)) * 2*tt / tau_days^2 / (1 - (tt/tau_days)^2)^2)
-get_lognormal_mu_from_A_halflife = function(A_halflife_days=(1.31*365), itn_lognorm_sigma=0.8){
-  # calculate tau as used in Amelia's retention function
-  tau_days = A_halflife_days * (1 - 18 / (18 - log(0.5)))^(-1/2)  
+
+# ============================================================
+# function: get_lognormal_mu_from_A_halflife
+# get the mu parameter for the lognormal net retention time (the function used in dtk simulations) that produces a distribution with the same mean or median value (depending on user selection) as the retention-time function used in Amelia's paper
+#     note that matching the median retention time will have a longer lognormal retention than matching the mean retention time
+#
+# Matches a lognormal distribution to the smooth-compact Loss
+# retention function using two approaches:
+#
+#   Method 1 (median match): set lognormal median = Loss half-life
+#     mu = log(halflife_day)
+#
+#   Method 2 (mean match): set lognormal mean = Loss mean
+#     mu = log(E[T_Loss]) - sigma^2 / 2
+#     where E[T_Loss] = integral of Loss(t, kappa, tau) from 0 to tau
+#       (computed numerically; requires kappa and tau)
+#
+# Args:
+#   halflife_day  : half-life of the Loss function (days); the time at
+#                   which Loss(t) = 0.5
+#   sigma         : SD of the log (log-scale SD) of the lognormal
+#   kappa         : shape parameter of the Loss function
+#   match_type    : "median" to match the half-life (Method 1, default)
+#                   "mean"   to match the mean retention time (Method 2)
+#
+# Returns:
+#   A single numeric value: the lognormal mu for the chosen match_type.
+#   A summary data.frame comparing both methods is printed as a side effect.
+# ============================================================
+
+get_lognormal_mu_from_A_halflife = function(A_halflife_day=(2.2*365), itn_lognorm_sigma=0.8, kappa=20, match_type="median", verbose=FALSE) {
+  match_type <- match.arg(match_type, c("median","mean"))
   
-  # find the mean (expected value) of the retention time distribution A(tt)... this will later be set as the mean of the dtk lognormal retention time distribution
-  # numeric approximation to get mean
-  xx = seq(0,(4.5*A_halflife_days),0.1)
-  A_mean = weighted.mean(xx,  18*exp(18 - 18 / (1 - (xx/tau_days)^2)) * 2*xx / tau_days^2 / (1 - (xx/tau_days)^2)^2)
+  # --- Derive tau from halflife and kappa ------------------------------
+  # From Loss(h, kappa, tau) = 0.5:  h = tau * sqrt(log(2) / (kappa + log(2)))
+  # Rearranging:
+  tau <- A_halflife_day * sqrt((kappa + log(2)) / log(2))
   
-  # the mean of the lognormal distribution is exp(mu + sigma^2 / 2), so mu = log(A_mean) - sigma^2 / 2
-  lognormal_mu = log(A_mean) - itn_lognorm_sigma^2 / 2
-  if(is.na(lognormal_mu)) warning('PROBLEM DETEcTED: sampled lognormal mu for net retention distribution is NA. This may be because the expected value was numerically calculated using too large a maximum retention time.')
-  return(lognormal_mu)
+  # --- Method 1: match lognormal median to Loss half-life --------------
+  mu_m1 <- log(A_halflife_day)
+
+  # --- Method 2 / verbose: requires numerical integration --------------
+  # Only compute when needed to avoid overhead during repeated sampling.
+  if (match_type == "mean" || verbose) {
+    loss_fn  <- function(t) exp(kappa - kappa / (1 - (t / tau)^2))
+    E_T_loss <- integrate(
+      loss_fn,
+      lower        = 0,
+      upper        = tau * (1 - 1e-8),
+      subdivisions = 500L,
+      rel.tol      = 1e-8
+    )$value
+    mu_m2 <- log(E_T_loss) - itn_lognorm_sigma^2 / 2
+  }
+
+  # --- Verbose comparison table ----------------------------------------
+  if (verbose) {
+    df <- data.frame(
+      method           = c("M1_median_match", "M2_mean_match"),
+      mu               = c(mu_m1, mu_m2),
+      lognormal_median = c(exp(mu_m1),                            exp(mu_m2)),
+      lognormal_mean   = c(exp(mu_m1 + itn_lognorm_sigma^2 / 2), exp(mu_m2 + itn_lognorm_sigma^2 / 2)),
+      loss_halflife    = A_halflife_day,
+      loss_mean        = E_T_loss,
+      tau              = tau
+    )
+    print(df)
+  }
+
+  if (match_type == "median") mu_m1 else mu_m2
 }
+
+
+
+
+# OLD VERSION
+# #    this value is calculated from the net halflife in the function from Amelia's paper
+# #    process: 1) use median value from distribution A to get the mean value from distribution A
+# #             2) find the mu lognormal parameter such that the mean of the lognormal distribution has the same mean as distribution A
+# # retention-time function (1-CDF) from Amelia's paper:
+# #    A(tt) = exp(18 - 18 / (1 - (tt/tau_days)^2)), 
+# #    where tau_days = A_halflife_days * (1 - 18 / (18 - log(0.5)))^(-1/2)
+# # retention-time probability distribution = d/dt[1-CDF] = A'(tt)
+# #    A'(tt) = 18*exp(18 - 18 / (1 - (tt/tau_days)^2)) * 2*tt / tau_days^2 / (1 - (tt/tau_days)^2)^2)
+# get_lognormal_mu_from_A_halflife = function(A_halflife_days=(1.31*365), itn_lognorm_sigma=0.8){
+#   # calculate tau as used in Amelia's retention function
+#   tau_days = A_halflife_days * (1 - 18 / (18 - log(0.5)))^(-1/2)  
+#   
+#   # find the mean (expected value) of the retention time distribution A(tt)... this will later be set as the mean of the dtk lognormal retention time distribution
+#   # numeric approximation to get mean
+#   xx = seq(0,(4.5*A_halflife_days),0.1)
+#   A_mean = weighted.mean(xx,  18*exp(18 - 18 / (1 - (xx/tau_days)^2)) * 2*xx / tau_days^2 / (1 - (xx/tau_days)^2)^2)
+#   
+#   # the mean of the lognormal distribution is exp(mu + sigma^2 / 2), so mu = log(A_mean) - sigma^2 / 2
+#   lognormal_mu = log(A_mean) - itn_lognorm_sigma^2 / 2
+#   if(is.na(lognormal_mu)) warning('PROBLEM DETEcTED: sampled lognormal mu for net retention distribution is NA. This may be because the expected value was numerically calculated using too large a maximum retention time.')
+#   return(lognormal_mu)
+# }
+
+
 
 # from the distribution of median LLIN retention times, sample median retention times and convert them into mus for the lognormal distribution used in the dtk
 sample_net_longevity_params = function(hbhi_dir, num_samples=50, itn_lognorm_sigma=0.8,
@@ -404,11 +481,16 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
     coverage_df = read.csv(paste0(hbhi_dir, '/simulation_inputs/intermediate_files/ITN_coverage/itn_mass_coverages_2010_toPresent.csv'))
     coverage_df$date = as.Date(coverage_df$date)
     coverage_df$matched_dhs_date = as.Date(coverage_df$matched_dhs_date)
+    coverage_df = coverage_df[!is.na(coverage_df$date), ]
+    if(nrow(coverage_df) == 0){
+      stop("No valid dates found in coverage_df$date after parsing.")
+    }
     all_admins = unique(coverage_df$admin_name)
     coverage_timeseries = data.frame('admin_name'=c(), 'State'=c(), 'date'=c(), 'coverage'=c())
     first_day = as.Date('2010-01-01')
+    final_day = max(coverage_df$date, na.rm=TRUE)
     # date_vector = seq(first_day, as.Date('2022-01-01'), by=1)
-    date_vector = seq.Date(first_day, as.Date('2025-01-01'), by='month')
+    date_vector = seq.Date(first_day, final_day, by='month')
     timeseries_length = length(date_vector)
     for(aa in 1:length(all_admins)){
       cur_distributions = coverage_df[coverage_df$admin_name == all_admins[aa],]
@@ -437,7 +519,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -447,7 +529,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_line(data=coverage_timeseries, aes(x=date, y=coverage, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -461,7 +543,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -482,7 +564,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -495,7 +577,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -510,7 +592,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -524,7 +606,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -541,7 +623,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -557,7 +639,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
