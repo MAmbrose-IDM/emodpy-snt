@@ -171,9 +171,9 @@ get_iptp_doses_from_dhs = function(hbhi_dir, dta_dir, years, sim_start_year, las
   colnames(store_iptp_fractions) = colnames_iptp
   rownames(store_iptp_fractions) = c('1 dose', '2 doses', '3 doses')
   
-  # remove NA rows
+  # remove NA columns (survey years where fewer than 30 individuals were sampled)
   na_cols = which(is.na(store_iptp_fractions[1,]))
-  if(length(na_cols)>1) {
+  if(length(na_cols) >= 1) {
     store_iptp_fractions = store_iptp_fractions[,-na_cols]
     years_included = colnames_iptp[-na_cols]
   } else{
