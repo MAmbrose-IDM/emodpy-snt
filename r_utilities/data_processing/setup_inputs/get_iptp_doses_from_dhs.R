@@ -4,7 +4,7 @@ library(dplyr)
 
 # ---------------------------------------------------------------------------
 # Internal helpers: CSPro fixed-width file parsing
-# Mirrors logic in 1_DHS_data_extraction_test.R so this script is self-contained.
+# Mirrors logic in 1_DHS_data_extraction.R so this script is self-contained.
 # ---------------------------------------------------------------------------
 
 .parse_dcf_layout_iptp <- function(dcf_path) {
@@ -88,6 +88,8 @@ library(dplyr)
 
 .read_cspr_iptp <- function(dat_path, dcf_path = NULL) {
   sps_path <- sub("(?i)\\.dat$", ".SPS", dat_path, perl = TRUE)
+  if (!file.exists(sps_path))
+    sps_path <- sub("(?i)\\.dat$", ".sps", dat_path, perl = TRUE)
   if (file.exists(sps_path)) {
     layout  <- .parse_sps_layout_iptp(sps_path)
     col_pos <- readr::fwf_positions(
@@ -95,8 +97,11 @@ library(dplyr)
       end       = layout$Start + layout$Len - 1L,
       col_names = layout$Name)
   } else {
-    if (is.null(dcf_path))
+    if (is.null(dcf_path)) {
       dcf_path <- sub("(?i)\\.dat$", ".dcf", dat_path, perl = TRUE)
+      if (!file.exists(dcf_path))
+        dcf_path <- sub("(?i)\\.dat$", ".DCF", dat_path, perl = TRUE)
+    }
     if (!file.exists(dcf_path))
       stop("No .sps or .dcf layout file found for: ", dat_path)
     layout  <- .parse_dcf_layout_iptp(dcf_path)
@@ -200,17 +205,19 @@ get_iptp_doses_from_dhs = function(hbhi_dir, dta_dir, years, sim_start_year, las
       warning('unknown reason for NAs in smoothed IPTp dose matrix - not writing csv output file.')
     }
   } else{
-    # For Nigeria: piecewise mean approach.
+    # For Nigeria: use a two-epoch, piecewise-smoothed profile.
     # Year-to-year fluctuations in dose distribution across DHS/MIS surveys are unlikely
     # to reflect true trends (DHS and MIS surveys show different apparent coverage levels).
     # Rather than a single grand mean, split surveys into two epochs:
     #   "recent" = final survey year and any within 5 years of it
     #   "early"  = all remaining surveys
-    # Each epoch's mean is computed by summing counts across its surveys (same approach
-    # as the old single-mean), then renormalising. Simulation years are assigned the
-    # early mean (for years <= mean of early survey years), the recent mean (for years >=
-    # mean of recent survey years, including all future years), and a linear interpolation
-    # in between. This captures big-picture directional change while suppressing noise.
+    # Within each epoch, combine the survey-specific dose fractions by summing the
+    # per-survey fractions (rowSums across survey columns) and renormalising, i.e.
+    # an unweighted aggregation of survey-level fractions rather than summing counts.
+    # Simulation years are assigned the early profile for years <= the last early
+    # survey year, the recent profile for years >= the first recent survey year
+    # (including all future years), and a linear interpolation in between. This
+    # captures big-picture directional change while suppressing noise.
 
     # Only include actual survey years (exclude any synthetic last_sim_year column)
     survey_yr_cols  = as.numeric(colnames(store_iptp_fractions)) %in% as.numeric(years)

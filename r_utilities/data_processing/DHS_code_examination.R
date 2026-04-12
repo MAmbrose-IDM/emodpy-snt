@@ -196,10 +196,12 @@ ind_filenum = 1 # 2010:1, 2013:1, 2015:4, 2018:1, 2021: 5
 dta_filepaths[ind_filenum]
 View(dta_list[[ind_filenum]][1:50,ind_codes[ind_codes %in% colnames(dta_list[[ind_filenum]])]])
 
-ind_codes = c('QHCLUST','QHNUMBER','QHLGOVAREA','QHLOCALITY','QHREGION','QH01','QH07','ML07I','ML07F','GHINTRO', 'GHLATPOLE', 'GHLATITUDE', 'GHLONGITUDE','QB114', 'QB112A', 'QB113','QB113B', 'QHLGOVAN','QH121','QH129','QH129A','QH129B','QH129C','QH129D','QH129E','Q404','Q405','Q406','Q407','Q408','Q412','Q413')
-View(distinct(dta_list[[5]][,which(colnames(dta_list[[5]]) %in% ind_codes)]))
-View(distinct(dta_list[[4]][,which(colnames(dta_list[[4]]) %in% ind_codes)]))
-View(distinct(dta_list[[1]][,which(colnames(dta_list[[1]]) %in% ind_codes)]))
+
+# # quick check of 2025 MIS codes
+# ind_codes = c('QHCLUST','QHNUMBER','QHLGOVAREA','QHLOCALITY','QHREGION','QH01','QH07','ML07I','ML07F','GHINTRO', 'GHLATPOLE', 'GHLATITUDE', 'GHLONGITUDE','QB114', 'QB112A', 'QB113','QB113B', 'QHLGOVAN','QH121','QH129','QH129A','QH129B','QH129C','QH129D','QH129E','Q404','Q405','Q406','Q407','Q408','Q412','Q413')
+# View(distinct(dta_list[[5]][,which(colnames(dta_list[[5]]) %in% ind_codes)]))
+# View(distinct(dta_list[[4]][,which(colnames(dta_list[[4]]) %in% ind_codes)]))
+# View(distinct(dta_list[[1]][,which(colnames(dta_list[[1]]) %in% ind_codes)]))
 
 
 dta_filepaths[7]
