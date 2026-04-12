@@ -384,8 +384,25 @@ normalize_archetype_info <- function(df) {
   }
   df <- rename_once(df, c("LGA","DS","admin_name"),          "NOMDEP")
   df <- rename_once(df, c("State"),                           "NOMREGION")
-  df <- rename_once(df, c("Geopolitical.zone","Zone","ZONE"), "ZONE")
+  df <- rename_once(df, c("Geopolitical.zone","Geopolitical.Zone","Zone","ZONE"), "ZONE")
   df
+}
+
+# Build a deduplicated NOMREGION → grouping_col lookup table (one row per state).
+# If archetype_info has multiple grouping values for one state (e.g. multiple
+# archetypes per state), merging directly inflates cluster_df row counts, causing
+# inflated arch/national sums.  This helper keeps only the first occurrence per
+# state and emits a warning when inconsistencies are found.
+.safe_zone_map <- function(archetype_info, grouping_col) {
+  zm <- dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)])
+  dups <- duplicated(zm[["NOMREGION"]])
+  if (any(dups)) {
+    warning("[grouping] Multiple '", grouping_col, "' values per state in archetype_info — ",
+            "keeping first per state. States affected: ",
+            paste(unique(zm$NOMREGION[dups]), collapse = ", "))
+    zm <- zm[!dups, , drop = FALSE]
+  }
+  zm
 }
 
 # Extract and scale the survey weight column (hv005, v005, or QWEIGHT) to fractions.
@@ -956,20 +973,115 @@ assign_clusters_to_admins <- function(cluster_df, admin_shape,
   if (is.na(sf::st_crs(admin_sf)) ||
       !identical(sf::st_crs(admin_sf), sf::st_crs(4326)))
     admin_sf <- sf::st_transform(admin_sf, 4326)
+  # Drop any pre-existing admin-name columns to prevent sf::st_join from adding
+  # .x/.y suffixes that would break the column lookup below.
+  for (.col in unique(c(region_col, admin_col, "NOMREGION", "NOMDEP"))) {
+    if (.col %in% colnames(cluster_df)) cluster_df[[.col]] <- NULL
+  }
   pts_sf <- sf::st_as_sf(cluster_df,
                          coords = c("longitude", "latitude"),
                          crs    = 4326,
                          remove = FALSE)
-  joined <- suppressMessages(
+  # Tag each input row so we can detect polygon-overlap duplicates after the join.
+  pts_sf$.row_id. <- seq_len(nrow(pts_sf))
+  joined_full <- suppressMessages(
     sf::st_join(pts_sf, admin_sf[, c(region_col, admin_col)])
   )
-  result           <- as.data.frame(joined)
-  result$geometry  <- NULL
+  joined_df <- as.data.frame(joined_full)
+  joined_df$geometry <- NULL
+
+  # ---- Detect ambiguous clusters (matched >1 polygon) ----
+  row_counts    <- table(joined_df$.row_id.)
+  ambiguous_ids <- as.integer(names(row_counts[row_counts > 1]))
+  ambiguous_log <- NULL
+  if (length(ambiguous_ids) > 0) {
+    message("  [admin_assign] ", length(ambiguous_ids),
+            " cluster(s) matched more than one admin polygon — keeping first match.")
+    clust_col <- if ("clusterid" %in% colnames(joined_df)) "clusterid" else NULL
+    amb_rows  <- joined_df[joined_df$.row_id. %in% ambiguous_ids, ]
+    ambiguous_log <- do.call(rbind, lapply(ambiguous_ids, function(rid) {
+      rows <- amb_rows[amb_rows$.row_id. == rid, ]
+      data.frame(
+        latitude            = rows$latitude[1],
+        longitude           = rows$longitude[1],
+        clusterid           = if (!is.null(clust_col)) rows[[clust_col]][1] else NA_integer_,
+        n_matches           = nrow(rows),
+        all_matched_admins  = paste(rows[[admin_col]],  collapse = " / "),
+        all_matched_regions = paste(rows[[region_col]], collapse = " / "),
+        selected_admin      = rows[[admin_col]][1],
+        selected_region     = rows[[region_col]][1],
+        stringsAsFactors    = FALSE
+      )
+    }))
+  }
+
+  # Keep only the first polygon match per input cluster point.
+  result          <- joined_df[!duplicated(joined_df$.row_id.), , drop = FALSE]
+  result$.row_id. <- NULL
   result$NOMREGION <- result[[region_col]]
   result$NOMDEP    <- result[[admin_col]]
   if (region_col != "NOMREGION") result[[region_col]] <- NULL
   if (admin_col  != "NOMDEP")    result[[admin_col]]  <- NULL
-  result
+
+  list(cluster_df = result, ambiguous_log = ambiguous_log)
+}
+
+# Map page showing clusters that matched >1 admin polygon during the spatial join.
+# Each point is labelled with the selected admin and the alternative(s); a caption
+# gives the total count.  Saved as a standalone PDF in the same plots directory as
+# the GPS diagnostics PDF.
+.plot_ambiguous_admin_assignments <- function(ambiguous_log, admin_shape, plot_file) {
+  if (is.null(ambiguous_log) || nrow(ambiguous_log) == 0) return(invisible(NULL))
+  for (pkg in c("ggplot2", "sf")) {
+    if (!requireNamespace(pkg, quietly = TRUE)) {
+      warning("Package '", pkg, "' needed for ambiguous-polygon map — skipping.")
+      return(invisible(NULL))
+    }
+  }
+  admin_sf <- sf::st_as_sf(admin_shape)
+  if (is.na(sf::st_crs(admin_sf)) || !identical(sf::st_crs(admin_sf), sf::st_crs(4326)))
+    admin_sf <- sf::st_transform(admin_sf, 4326)
+
+  # Build a short label: "selected / alt" — truncate long multi-match strings
+  ambiguous_log$label <- paste0(
+    ambiguous_log$selected_admin, "\n[alt: ",
+    gsub(paste0("^", ambiguous_log$selected_admin, " / "), "", ambiguous_log$all_matched_admins),
+    "]"
+  )
+  # For cases where selected is not at the start of all_matched_admins, fall back
+  ambiguous_log$alt <- mapply(function(all, sel) {
+    parts <- strsplit(all, " / ")[[1]]
+    alts  <- parts[parts != sel]
+    if (length(alts) == 0) "—" else paste(alts, collapse = " / ")
+  }, ambiguous_log$all_matched_admins, ambiguous_log$selected_admin, USE.NAMES = FALSE)
+  ambiguous_log$label <- paste0(ambiguous_log$selected_admin, "\n[alt: ", ambiguous_log$alt, "]")
+
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_sf(data = admin_sf, fill = "grey97", colour = "grey70", linewidth = 0.25) +
+    ggplot2::geom_point(
+      data = ambiguous_log,
+      ggplot2::aes(longitude, latitude, colour = selected_admin),
+      size = 3, alpha = 0.85, show.legend = FALSE) +
+    ggplot2::geom_text(
+      data = ambiguous_log,
+      ggplot2::aes(longitude, latitude, label = label),
+      size = 2.2, vjust = -0.6, lineheight = 0.85, check_overlap = FALSE) +
+    ggplot2::labs(
+      title    = "Admin assignment: clusters matched to >1 polygon",
+      subtitle = paste0(
+        nrow(ambiguous_log), " cluster(s) fell on or near an admin boundary and matched ",
+        "multiple polygons.\nThe FIRST matched polygon was used (shown). ",
+        "Verify that the selected LGA is correct."),
+      x = NULL, y = NULL,
+      caption = paste0("Selected admin shown as point colour and label; alternative(s) in brackets.\n",
+                       "If incorrect, review the admin shapefile for boundary overlaps.")) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(plot.caption = ggplot2::element_text(size = 7, colour = "grey50"))
+
+  grDevices::pdf(plot_file, width = 11, height = 8.5)
+  print(p)
+  grDevices::dev.off()
+  message("  [admin_assign] Ambiguous-polygon map saved to ", basename(plot_file))
 }
 
 # Great-circle distance in km between two lat/lon pairs (vectorised).
@@ -2215,7 +2327,9 @@ extract_DHS_data <- function(
       cluster_df <- read.csv(cluster_file)[, -1]
     } else {
       recode_df <- read.csv(file.path(out_dir, paste0("DHS_", year, "_files_recodes_for_sims.csv")))
-      
+      plots_dir <- file.path(out_dir, "plots")
+      if (!dir.exists(plots_dir)) dir.create(plots_dir, recursive = TRUE)
+
       # Cluster initialization:
       #   If recode CSV has a "locations" row pointing to a GPS shapefile, use that
       #   (classic DHS/MIS approach). Otherwise extract cluster IDs and LGA/state
@@ -2244,8 +2358,6 @@ extract_DHS_data <- function(
           lon_col <- if ("longitude_code" %in% colnames(recode_df) &&
                          !is.na(recode_df$longitude_code[loc_idx]))
             recode_df$longitude_code[loc_idx] else "GHLONGITUDE"
-          plots_dir <- file.path(out_dir, "plots")
-          if (!dir.exists(plots_dir)) dir.create(plots_dir, recursive = TRUE)
           # Read optional MIS state/LGA column names from the locations row.
           # Handles duplicate column names: R renames repeated headers to col.1, col.2, …
           # so we scan all matching columns and return the first non-NA value.
@@ -2462,7 +2574,18 @@ extract_DHS_data <- function(
       if (all(c("latitude", "longitude") %in% colnames(cluster_df))) {
         if (is.null(admin_shape))
           stop("admin_shape is required to assign clusters to admin units via spatial join.")
-        cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape)
+        .join <- assign_clusters_to_admins(cluster_df, admin_shape)
+        cluster_df <- .join$cluster_df
+        if (!is.null(.join$ambiguous_log)) {
+          amb_csv <- file.path(plots_dir, paste0("admin_assignment_ambiguity_", year, ".csv"))
+          amb_pdf <- file.path(plots_dir, paste0("admin_assignment_ambiguity_", year, ".pdf"))
+          write.csv(.join$ambiguous_log, amb_csv, row.names = FALSE)
+          message("  [admin_assign] Ambiguity log (", nrow(.join$ambiguous_log),
+                  " cluster(s)) saved to ", basename(amb_csv))
+          .plot_ambiguous_admin_assignments(.join$ambiguous_log, admin_shape, amb_pdf)
+        } else {
+          message("  [admin_assign] All clusters matched exactly one polygon.")
+        }
       } else if (!all(c("NOMDEP", "NOMREGION") %in% colnames(cluster_df))) {
         stop("No GPS coordinates and no admin names available — cannot assign clusters to admin units.")
       }
@@ -2499,11 +2622,12 @@ extract_DHS_data <- function(
               file.path(out_dir, paste0("DHS_admin_", year, ".csv")))
     
     grouping_col <- if ("ZONE" %in% colnames(archetype_info)) "ZONE" else "Archetype"
-    
-    # Bring grouping column into cluster_df for ACT aggregation (NOMREGION → ZONE/Archetype)
-    cluster_df <- merge(cluster_df,
-                        dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                        all.x = TRUE)
+
+    # Bring grouping column into cluster_df for ACT aggregation (NOMREGION → ZONE/Archetype).
+    # .safe_zone_map deduplicates to one row per state — merging a non-deduplicated table
+    # would create one cluster row per archetype, inflating all arch/national sums.
+    zone_map   <- .safe_zone_map(archetype_info, grouping_col)
+    cluster_df <- merge(cluster_df, zone_map, by = "NOMREGION", all.x = TRUE)
     
     # Bring seasonality_archetype into cluster_df for archetype-level aggregation.
     # This is an LGA-level property so must be merged by NOMDEP, not NOMREGION.
@@ -2554,6 +2678,14 @@ extract_DHS_data <- function(
     else grouping_col
     arch_sums     <- compute_level_sums(cluster_df, arch_col, present_vars)
     national_sums <- compute_level_sums(cluster_df, character(0), present_vars)
+    # Zone-level sums for the fallback mechanism: always indexed by grouping_col (ZONE/Archetype).
+    # arch_sums may use seasonality_archetype (LGA-level), which has no ZONE column and would
+    # cause apply_min_sample_fallback to skip the zone level and fall through to national.
+    zone_fallback_sums <- if (arch_col != grouping_col) {
+      compute_level_sums(cluster_df, grouping_col, present_vars)
+    } else {
+      arch_sums
+    }
     
     if ("mean_date" %in% colnames(cluster_df)) {
       arch_sums <- merge(arch_sums,
@@ -2592,14 +2724,10 @@ extract_DHS_data <- function(
     write.csv(format_dates_for_csv(as.data.frame(national_out)),
               file.path(out_dir, "DHS_national_rates.csv"), row.names = FALSE)
     
-    # Bring grouping column into admin_sums for fallback join
-    admin_sums <- merge(admin_sums,
-                        dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                        all.x = TRUE)
-    
+    # ZONE is already in admin_sums from expand_and_merge_archetype — no merge needed.
     fallback_list <- list(
       list(join_col = "NOMREGION",  data = region_sums),
-      list(join_col = grouping_col, data = arch_sums),
+      list(join_col = grouping_col, data = zone_fallback_sums),
       list(join_col = NULL,         data = national_sums)
     )
     admin_sums <- apply_min_sample_fallback(admin_sums, fallback_list,
@@ -3312,7 +3440,7 @@ extract_vaccine_DHS_data <- function(
     cluster_df <- merge_cluster_result(cluster_df, res, recode_df$cluster_id_code[idx], vv)
   }
   
-  cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape)
+  cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape)$cluster_df
   write.csv(as.data.frame(cluster_df),
             file.path(out_dir, paste0("DHS_vaccine_cluster_outputs_", year, ".csv")))
   
@@ -3323,19 +3451,16 @@ extract_vaccine_DHS_data <- function(
   admin_sums     <- expand_and_merge_archetype(admin_sums, archetype_info)
   
   grouping_col  <- if ("ZONE" %in% colnames(archetype_info)) "ZONE" else "Archetype"
-  
+  zone_map      <- .safe_zone_map(archetype_info, grouping_col)
+
   # Merge grouping column into cluster_df so compute_level_sums can group by it.
-  cluster_df <- merge(cluster_df,
-                      dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                      all.x = TRUE)
-  
+  cluster_df <- merge(cluster_df, zone_map, by = "NOMREGION", all.x = TRUE)
+
   region_sums   <- compute_level_sums(cluster_df, "NOMREGION", vaccine_variables)
   arch_sums     <- compute_level_sums(cluster_df, grouping_col, vaccine_variables)
   national_sums <- compute_level_sums(cluster_df, character(0), vaccine_variables)
-  
-  admin_sums <- merge(admin_sums,
-                      dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                      all.x = TRUE)
+
+  # ZONE is already in admin_sums from expand_and_merge_archetype — no merge needed.
   fallback_list <- list(
     list(join_col = "NOMREGION",  data = region_sums),
     list(join_col = grouping_col, data = arch_sums),
@@ -3389,7 +3514,7 @@ extract_vaccine_MICS_data <- function(
   }
   
   cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape,
-                                          region_col = "State", admin_col = "GEONAMET")
+                                          region_col = "State", admin_col = "GEONAMET")$cluster_df
   cluster_df <- cluster_df %>%
     rename(NOMREGION = NOMREGION, NOMDEP = NOMDEP)  # canonical names already set
   
@@ -3408,19 +3533,15 @@ extract_vaccine_MICS_data <- function(
     admin_sums <- expand_and_merge_archetype(admin_sums, archetype_info)
     
     grouping_col  <- if ("ZONE" %in% colnames(archetype_info)) "ZONE" else "Archetype"
-    
+    zone_map      <- .safe_zone_map(archetype_info, grouping_col)
+
     # Merge grouping column into cluster_df so compute_level_sums can group by it.
-    cluster_df <- merge(cluster_df,
-                        dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                        all.x = TRUE)
-    
+    cluster_df <- merge(cluster_df, zone_map, by = "NOMREGION", all.x = TRUE)
+
     arch_sums     <- compute_level_sums(cluster_df, grouping_col, vaccine_variables)
     national_sums <- compute_level_sums(cluster_df, character(0), vaccine_variables)
-    
-    admin_sums <- merge(admin_sums,
-                        dplyr::distinct(archetype_info[, c("NOMREGION", grouping_col)]),
-                        all.x = TRUE)
-    
+
+    # ZONE is already in admin_sums from expand_and_merge_archetype — no merge needed.
     write.csv(as.data.frame(admin_sums),
               file.path(out_dir, paste0("MICS_vaccine_admin_", year, ".csv")))
     
@@ -3887,7 +4008,7 @@ create_DHS_reference_monthly_pfpr <- function(
     cluster_df <- merge(cluster_df, res,
                         by.x = "clusterid", by.y = recode_df$cluster_id_code[idx],
                         all = TRUE)
-    cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape)
+    cluster_df <- assign_clusters_to_admins(cluster_df, admin_shape)$cluster_df
     cluster_df <- cluster_df %>% rename(admin_name = NOMDEP)
     
     all_years_df <- if (nrow(all_years_df) == 0) as.data.frame(cluster_df)
