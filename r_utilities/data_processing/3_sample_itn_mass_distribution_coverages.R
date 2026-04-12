@@ -55,38 +55,37 @@ get_lognormal_mu_from_A_halflife = function(A_halflife_day=(2.2*365), itn_lognor
   # Rearranging:
   tau <- A_halflife_day * sqrt((kappa + log(2)) / log(2))
   
-  # --- Loss function ---------------------------------------------------
-  loss_fn <- function(t) exp(kappa - kappa / (1 - (t / tau)^2))
-  
-  # --- E[T_Loss]: mean of the Loss retention curve ---------------------
-  # Integrate from 0 to just below tau; the integrand decays smoothly to
-  # 0 as t -> tau so the tail contribution is negligible.
-  E_T_loss <- integrate(
-    loss_fn,
-    lower        = 0,
-    upper        = tau * (1 - 1e-8),
-    subdivisions = 500L,
-    rel.tol      = 1e-8
-  )$value
-  
   # --- Method 1: match lognormal median to Loss half-life --------------
   mu_m1 <- log(A_halflife_day)
-  
-  # --- Method 2: match lognormal mean to Loss mean ---------------------
-  mu_m2 <- log(E_T_loss) - itn_lognorm_sigma^2 / 2
-  
-  # --- Assemble output -------------------------------------------------
-  df <- data.frame(
-    method           = c("M1_median_match", "M2_mean_match"),
-    mu               = c(mu_m1, mu_m2),
-    lognormal_median = c(exp(mu_m1),               exp(mu_m2)),
-    lognormal_mean   = c(exp(mu_m1 + itn_lognorm_sigma^2 / 2), exp(mu_m2 + itn_lognorm_sigma^2 / 2)),
-    loss_halflife    = A_halflife_day,
-    loss_mean        = E_T_loss,
-    tau              = tau
-  )
-  if (verbose) print(df)
-  
+
+  # --- Method 2 / verbose: requires numerical integration --------------
+  # Only compute when needed to avoid overhead during repeated sampling.
+  if (match_type == "mean" || verbose) {
+    loss_fn  <- function(t) exp(kappa - kappa / (1 - (t / tau)^2))
+    E_T_loss <- integrate(
+      loss_fn,
+      lower        = 0,
+      upper        = tau * (1 - 1e-8),
+      subdivisions = 500L,
+      rel.tol      = 1e-8
+    )$value
+    mu_m2 <- log(E_T_loss) - itn_lognorm_sigma^2 / 2
+  }
+
+  # --- Verbose comparison table ----------------------------------------
+  if (verbose) {
+    df <- data.frame(
+      method           = c("M1_median_match", "M2_mean_match"),
+      mu               = c(mu_m1, mu_m2),
+      lognormal_median = c(exp(mu_m1),                            exp(mu_m2)),
+      lognormal_mean   = c(exp(mu_m1 + itn_lognorm_sigma^2 / 2), exp(mu_m2 + itn_lognorm_sigma^2 / 2)),
+      loss_halflife    = A_halflife_day,
+      loss_mean        = E_T_loss,
+      tau              = tau
+    )
+    print(df)
+  }
+
   if (match_type == "median") mu_m1 else mu_m2
 }
 
@@ -520,7 +519,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -530,7 +529,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_line(data=coverage_timeseries, aes(x=date, y=coverage, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate, col=admin_name)) +
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -544,7 +543,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
       geom_point(data=net_dhs_info, aes(x=date,y=itn_u5_rate), shape=21, col='black') +
       geom_point(data=coverage_df, aes(x=date), y=1, col='black', shape='|', size=1) +
       geom_point(data=coverage_df, aes(x=date), y=0.98, col='black', shape='V', size=1) +
-      coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+      coord_cartesian(xlim=c(first_day, final_day)) +
       theme_bw()+
       theme(legend.position='none') +
       facet_wrap('State', nrow=5)
@@ -565,7 +564,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -578,7 +577,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -593,7 +592,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -607,7 +606,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -624,7 +623,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 
@@ -640,7 +639,7 @@ create_itn_input_from_DHS_differentDates = function(hbhi_dir, itn_variables, itn
         geom_point(data=net_dhs_info, aes(x=date, y=itn_u5_rate, color=admin_name), size=0.6)+
         scale_y_continuous(guide = guide_axis(check.overlap = TRUE)) +
         scale_x_date(guide = guide_axis(check.overlap = TRUE), breaks=as.Date(paste0(c(2012,2016,2020),'/01/01')), labels=c(2012,2016,2020)) +
-        coord_cartesian(xlim=c(as.Date('2010-01-01'), as.Date('2025-01-01'))) +
+        coord_cartesian(xlim=c(first_day, final_day)) +
         theme_classic()+
         theme(legend.position='none') +
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='fixed') 

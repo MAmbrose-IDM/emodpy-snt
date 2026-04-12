@@ -25,7 +25,11 @@ library(dplyr)
       data.frame(Name = nm, Start = st, Len = ln, stringsAsFactors = FALSE)
     else NULL
   })
-  do.call(rbind, rows)
+  layout <- do.call(rbind, Filter(Negate(is.null), rows))
+  if (is.null(layout) || nrow(layout) == 0)
+    stop("No valid Name/Start/Len entries parsed from DCF: ", dcf_path,
+         "\n  Check that the file uses standard CSPro key names (Name=, Start=, Len=).")
+  layout
 }
 
 .parse_sps_layout_iptp <- function(sps_path) {
