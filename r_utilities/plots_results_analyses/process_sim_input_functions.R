@@ -561,23 +561,28 @@ get_pmc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   input_df$year = floor(input_df$simday/365) + min_year
   input_df = merge(input_df, admin_info)
   
-  # EPI PMC is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
-  input_df$years_repeated = input_df$duration/365
-  if(any(input_df$years_repeated>1)){
-    cur_years = unique(input_df$year)
-    for(yy in cur_years){
-      # get first instance of this year
-      cur_year = input_df[input_df$year==yy,]
-      if(cur_year$years_repeated[1]>1){
-        for(rr in 1:(cur_year$years_repeated[1] - 1)){
-          temp_year = cur_year
-          temp_year$year = cur_year$year + rr
-          temp_year$simday = cur_year$simday + rr*365
-          input_df = rbind(input_df, temp_year)
+  if('duration' %in% colnames(input_df)){
+    # EPI PMC is sometimes repeated for several years but only listed once; change to repeat the appropriate number of times
+    input_df$years_repeated = input_df$duration/365
+    if(any(input_df$years_repeated>1)){
+      cur_years = unique(input_df$year)
+      for(yy in cur_years){
+        # get first instance of this year
+        cur_year = input_df[input_df$year==yy,]
+        if(cur_year$years_repeated[1]>1){
+          for(rr in 1:(cur_year$years_repeated[1] - 1)){
+            temp_year = cur_year
+            temp_year$year = cur_year$year + rr
+            temp_year$simday = cur_year$simday + rr*365
+            input_df = rbind(input_df, temp_year)
+          }
         }
       }
     }
+  } else{
+    input_df$duration = -1  # default value
   }
+
   if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
     df_repeated = input_df[input_df$duration == -1,]
     for(rr in 1:(end_year - df_repeated$year[1])){
