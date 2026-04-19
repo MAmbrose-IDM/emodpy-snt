@@ -31,7 +31,7 @@ save_plots = TRUE
 plot_simulation_intervention_output_timeseries_by_state = function(sim_output_dir, pop_filepath, grid_layout_state_locations,
                                                plot_by_month, min_year, max_year, sim_end_years, 
                                                scenario_filepaths, scenario_names, scenario_input_references, experiment_names, scenario_palette, 
-                                               indoor_protection_fraction=0.75, overwrite_files=FALSE){
+                                               indoor_protection_fraction=0.75, remove_exp_name_substring='', overwrite_files=FALSE){
   
   
   ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
@@ -82,7 +82,8 @@ plot_simulation_intervention_output_timeseries_by_state = function(sim_output_di
     cm_df = data.frame()
     for(ee in 1:length(scenario_filepaths)){
       intervention_csv_filepath = scenario_input_references[ee]
-      intervention_file_info = read.csv(intervention_csv_filepath)
+      intervention_file_info = read.csv(intervention_csv_filepath) %>%
+        mutate(ScenarioName = gsub(remove_exp_name_substring, '', ScenarioName))
       experiment_intervention_name = experiment_names[ee]
       end_year = sim_end_years[ee]
       cur_int_row = which(intervention_file_info$ScenarioName == experiment_intervention_name)

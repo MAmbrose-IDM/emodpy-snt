@@ -787,9 +787,9 @@ plot_state_grid_pmc = function(sim_future_output_dir, pop_filepath, grid_layout_
   # create scenario-comparison plots
   ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
   # get factors in the correct order (rather than alphabetical)
+  timeseries_df = timeseries_df[timeseries_df$scenario %in% scenario_names,]
   timeseries_df$scenario = factor(timeseries_df$scenario, levels=rev(scenario_names))
   timeseries_df$code = timeseries_df$State
-  
   
   if(separate_admin_lines_flag){
     gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
