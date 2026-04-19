@@ -1127,7 +1127,7 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
                                                burden_metric, age_plotted, 
                                                pyr, chw_cov,
                                                scenario_filepaths, scenario_names, scenario_input_references, experiment_names, scenario_palette, 
-                                               indoor_protection_fraction=0.75, LLIN2y_flag=FALSE, overwrite_files=FALSE){
+                                               indoor_protection_fraction=0.75, remove_exp_name_substring='', LLIN2y_flag=FALSE, overwrite_files=FALSE){
   
   
   ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
@@ -1303,7 +1303,12 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       intervention_file_info = read.csv(intervention_csv_filepath)
       experiment_intervention_name = experiment_names[ee]
       end_year = sim_end_years[ee]
-      cur_int_row = which(intervention_file_info$ScenarioName == experiment_intervention_name)
+      if(experiment_intervention_name %in% intervention_file_info$ScenarioName){
+        cur_int_row = which(intervention_file_info$ScenarioName == experiment_intervention_name)
+      } else{
+        cur_int_row = which(gsub(remove_exp_name_substring, '', intervention_file_info$ScenarioName) == experiment_intervention_name)
+      }
+      
       # read in intervention files
       cm_filepath = paste0(hbhi_dir, '/simulation_inputs/', intervention_file_info$CM_filename[cur_int_row], '.csv')
       
