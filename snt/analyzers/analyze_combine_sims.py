@@ -13,7 +13,7 @@ class combineSimOutputAnalyzer1(IAnalyzer):
                                                        filenames=["output/U5_PfPR_ClinicalIncidence_severeTreatment.csv",
                                                                   # "output/U1_PfPR_ClinicalIncidence_severeTreatment.csv",
                                                                   # "output/newInfections_PfPR_cases_monthly_byAgeGroup_withU1U5.csv",
-                                                                  # "output/All_Age_Monthly_Cases.csv"
+                                                                  # "output/All_Age_monthly_Cases.csv"
                                                                   ]
                                                        )
         self.sweep_variables = sweep_variables or ["Run_Number"]

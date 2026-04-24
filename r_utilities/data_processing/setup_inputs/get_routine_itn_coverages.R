@@ -29,7 +29,14 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
     sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
     sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
   } else{
-    sim_input_with_net_params = merge(sim_input, net_discard_decay %>% dplyr::select(-seed), all.x=TRUE)
+    net_discard_decay_no_seed = net_discard_decay %>% dplyr::select(-seed)
+    if(nrow(net_discard_decay_no_seed) != 1){
+      stop('Expected exactly one row of ITN discard decay parameters when num_seeds == 1 in transmission calibration input creation.')
+    }
+    sim_input_with_net_params = sim_input
+    for(col_name in colnames(net_discard_decay_no_seed)){
+      sim_input_with_net_params[[col_name]] = net_discard_decay_no_seed[[col_name]][1]
+    }
   }
   
   # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
@@ -106,7 +113,14 @@ add_routine_itn_decay = function(hbhi_dir, routine_itn_coverage_filename, sim_st
       sim_input_with_seed$seed = rep(1:max(net_discard_decay$seed), times=nrow(sim_input))
       sim_input_with_net_params = merge(sim_input_with_seed, net_discard_decay, by=c('seed'), all.x=TRUE)
     } else{
-      sim_input_with_net_params = merge(sim_input, net_discard_decay %>% dplyr::select(-seed), all.x=TRUE)
+      net_discard_decay_no_seed = net_discard_decay %>% dplyr::select(-seed)
+      if(nrow(net_discard_decay_no_seed) != 1){
+        stop('Expected exactly one row of ITN discard decay parameters when num_seeds == 1 in transmission calibration input creation.')
+      }
+      sim_input_with_net_params = sim_input
+      for(col_name in colnames(net_discard_decay_no_seed)){
+        sim_input_with_net_params[[col_name]] = net_discard_decay_no_seed[[col_name]][1]
+      }
     }
     
     # check that there are separate rows for each year (so that permethrin mortality can change in response to insecticide resistance, added in a later step)
