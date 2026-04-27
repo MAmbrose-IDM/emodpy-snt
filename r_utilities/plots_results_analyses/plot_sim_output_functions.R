@@ -22,6 +22,18 @@ text_size = 15
 save_plots = TRUE
 
 
+
+# for a plot with horizontal gridlines but not the box around the plot
+theme_gridlines_no_box <- function(...) {
+  theme_bw(...) +
+    theme(
+      panel.border        = element_blank(),
+      axis.line           = element_line(colour = "black"),
+      panel.grid.major.x  = element_blank(),
+      panel.grid.minor.x  = element_blank()
+    )
+}
+
 ####################################################################################
 # barplots for burden relative to BAU: percent reduction
 ####################################################################################
@@ -97,7 +109,8 @@ plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, di
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
       scale_fill_manual(values = scenario_palette) + 
-      theme_classic()+ 
+      # theme_classic()+
+      theme_gridlines_no_box()+
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text = element_text(size = text_size), legend.text=element_text(size = text_size), 
             axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank(),axis.line.x=element_blank(),
             plot.margin=unit(c(0,1,1,0), 'cm'))
@@ -471,7 +484,8 @@ plot_barplot_impact_specific_intervention = function(sim_future_output_dir, pop_
     scale_pattern_manual(values = scenario_barfill) +
     guides(pattern = guide_legend(override.aes = list(fill = "white")),
            fill = guide_legend(override.aes = list(pattern = "none"))) +
-    theme_classic()+ 
+    # theme_classic()+ 
+    theme_gridlines_no_box()+ 
     theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text = element_text(size = text_size), legend.text=element_text(size = text_size), 
           axis.title.x=element_blank(), axis.ticks.x=element_blank(), axis.line.x=element_blank(),
           plot.margin=unit(c(0,1,1,0), 'cm'))
@@ -953,9 +967,10 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
                                              min_year, max_year, sim_end_years, relative_year=NA,
                                              scenario_filepaths, scenario_names, experiment_names, scenario_palette, LLIN2y_flag=FALSE, overwrite_files=FALSE, 
                                              extend_past_timeseries_year=NA, scenario_linetypes=NA,filename_suffix=''){
-  if (!is.na(relative_year)){ if(relative_year<min_year){
-    warning('specified minimum year must be <= relative year. Setting min_year to relative_year.')
-    min_year = relative_year
+  if (!is.na(relative_year)){ 
+    if(relative_year<min_year){
+      warning('specified minimum year must be <= relative year. Setting min_year to relative_year.')
+      min_year = relative_year
   }}
   
   # create output directories
@@ -1051,14 +1066,17 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
     burden_df$code = burden_df$State
     gg = ggplot(burden_df, aes(x=year, y=mean_burden, color=scenario, linetype=scenario))+
       geom_line(linewidth=1) + 
-      # scale_linetype_manual(values=scenario_linetypes) +
-      # scale_color_manual(values = scenario_palette) + 
+      scale_linetype_manual(values=scenario_linetypes) +
+      scale_color_manual(values = scenario_palette) +
       xlab('year') + 
       ylab(burden_ylab) + 
       coord_cartesian(ylim=c(0, ifelse(!is.na(relative_year),2,NA)), xlim=c(min_year, max_year)) + 
-      scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+      # scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+      # scale_y_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+      scale_x_continuous(n.breaks= 4) +
+      scale_y_continuous(n.breaks= 3) +
       theme_bw()+ 
-      theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +  # legend.position = "none"
+      theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text=element_text(size = text_size), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
 
       ggsave(paste0(sim_future_output_dir, '/_plots/Timeseries_burden',relative_string,'_state_grid_',burden_metric,filename_suffix,'.png'), gg, dpi=600, width=12*0.9, height=8.5*0.9, units='in')
