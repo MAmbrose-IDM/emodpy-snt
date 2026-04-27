@@ -154,7 +154,7 @@ def add_hfca_lsm(campaign, lsm_df, hfca, seed_index=0):
 
 
 # all itn
-def add_hfca_itns(campaign, itn_df, itn_anc_df, itn_anc_adult_birthday_years, itn_epi_df, itn_chw_df, itn_chw_annual_df,
+def add_hfca_itns(campaign, itn_df, itn_anc_df, itn_anc_adult_birthday_years, itn_epi_df, itn_cont_df, itn_chw_df, itn_chw_annual_df,
                   hfca,
                   itn_use_seasonality, itn_decay_params, seed_index=0):  #
     if not itn_anc_adult_birthday_years:
@@ -180,6 +180,14 @@ def add_hfca_itns(campaign, itn_df, itn_anc_df, itn_anc_adult_birthday_years, it
 
     if not itn_epi_df.empty:
         df = itn_epi_df[itn_epi_df['admin_name'].str.upper() == hfca.upper()]
+        if 'seed' in df.columns.values:
+            df = df[df['seed'] == seed_index]
+        df = df.drop_duplicates()
+        add_birthday_routine_itn_from_file(campaign, df, itn_use_seasonality, itn_decay_params)
+        nets += len(df)
+
+    if not itn_cont_df.empty:
+        df = itn_cont_df[itn_cont_df['admin_name'].str.upper() == hfca.upper()]
         if 'seed' in df.columns.values:
             df = df[df['seed'] == seed_index]
         df = df.drop_duplicates()
@@ -1168,7 +1176,7 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
                           itn_df=pd.DataFrame(),
                           itn_anc_df=pd.DataFrame(), itn_use_seasonality=pd.DataFrame(),
                           itn_decay_params=pd.DataFrame(),
-                          itn_anc_adult_birthday_years=None, itn_epi_df=pd.DataFrame(),
+                          itn_anc_adult_birthday_years=None, itn_epi_df=pd.DataFrame(), itn_cont_df=pd.DataFrame(),
                           itn_chw_df=pd.DataFrame(), itn_chw_annual_df=pd.DataFrame(),
                           irs_df=pd.DataFrame(), lsm_df=pd.DataFrame(), smc_df=pd.DataFrame(), pmc_df=pd.DataFrame(), vacc_df=pd.DataFrame(),
                           vacc_char_df=pd.DataFrame(), vacc_df_2=pd.DataFrame(), epi_vacc_df=pd.DataFrame(), use_same_access_ips_all_ages=False,
@@ -1213,10 +1221,10 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
                                               use_same_access_ips_all_ages=use_same_access_ips_all_ages)
         add_triggered_vacc(campaign, vacc_char_df, hfca)
         has_vacc = add_pkpd_epi_vacc(campaign, epi_vacc_df, hfca)
-    if not (itn_df.empty and itn_anc_df.empty and itn_epi_df.empty and itn_chw_df.empty and itn_chw_annual_df.empty):
+    if not (itn_df.empty and itn_anc_df.empty and itn_epi_df.empty and itn_cont_df.empty and itn_chw_df.empty and itn_chw_annual_df.empty):
         has_itn = add_hfca_itns(campaign=campaign, itn_df=itn_df, itn_anc_df=itn_anc_df,
                                 itn_anc_adult_birthday_years=itn_anc_adult_birthday_years, itn_epi_df=itn_epi_df,
-                                itn_chw_df=itn_chw_df, itn_chw_annual_df=itn_chw_annual_df, hfca=hfca,
+                                itn_cont_df=itn_cont_df, itn_chw_df=itn_chw_df, itn_chw_annual_df=itn_chw_annual_df, hfca=hfca,
                                 itn_use_seasonality=itn_use_seasonality, itn_decay_params=itn_decay_params,
                                 seed_index=seed_index)
         if has_itn > 0:
