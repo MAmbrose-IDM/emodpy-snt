@@ -1288,9 +1288,12 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       # remove excess year from to-present simulation
       if(any(net_use_df$scenario == 'to-present') & length(scenario_names)>1){
         max_to_present_date = max(net_use_df$year[net_use_df$scenario == 'to-present'])
-        row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$year == max_to_present_date))
-        net_use_df = net_use_df[-row_to_remove,]
-        
+        min_projection_date = min(net_use_df$year[net_use_df$scenario != 'to-present'])
+        if(max_to_present_date >= min_projection_date){
+          row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$year == max_to_present_date))
+          net_use_df = net_use_df[-row_to_remove,]
+        }
+
         # join past and future simulation trajectories
         to_present_df = net_use_df[net_use_df$scenario == 'to-present',]
         final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
