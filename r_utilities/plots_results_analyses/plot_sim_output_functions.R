@@ -925,6 +925,9 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
         theme_classic()+ 
         theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size))
     }
+    if(burden_metric == 'PfPR'){
+      gg_list[[bb]] = gg_list[[bb]] + scale_y_continuous(labels = percent_format(accuracy = 1))
+    }
     if(plot_CI){
       gg_list[[bb]] =  gg_list[[bb]] +
         geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
@@ -1074,7 +1077,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       # scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
       # scale_y_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
       scale_x_continuous(n.breaks= 4) +
-      scale_y_continuous(n.breaks= 3) +
+      scale_y_continuous(n.breaks= 3, labels = if(grepl('PfPR', burden_metric)) percent_format(accuracy = 1) else waiver()) +
       theme_bw()+ 
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text=element_text(size = text_size), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
@@ -1288,9 +1291,12 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
       # remove excess year from to-present simulation
       if(any(net_use_df$scenario == 'to-present') & length(scenario_names)>1){
         max_to_present_date = max(net_use_df$year[net_use_df$scenario == 'to-present'])
-        row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$year == max_to_present_date))
-        net_use_df = net_use_df[-row_to_remove,]
-        
+        min_projection_date = min(net_use_df$year[net_use_df$scenario != 'to-present'])
+        if(max_to_present_date >= min_projection_date){
+          row_to_remove = intersect(which(net_use_df$scenario == 'to-present'), which(net_use_df$year == max_to_present_date))
+          net_use_df = net_use_df[-row_to_remove,]
+        }
+
         # join past and future simulation trajectories
         to_present_df = net_use_df[net_use_df$scenario == 'to-present',]
         final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
@@ -1352,10 +1358,12 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       # join past and future simulation trajectories
       to_present_df = cm_df[cm_df$scenario == 'to-present',]
-      final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
-      for(ss in 2:length(scenario_names)){
-        final_to_present_row$scenario = scenario_names[ss]
-        cm_df = rbind(cm_df, final_to_present_row)
+      if(nrow(to_present_df)>0){
+        final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+        for(ss in 2:length(scenario_names)){
+          final_to_present_row$scenario = scenario_names[ss]
+          cm_df = rbind(cm_df, final_to_present_row)
+        }
       }
     }
     write.csv(cm_df, cm_df_filepath, row.names=FALSE)
@@ -2216,13 +2224,202 @@ plot_burden_relative_reduction_maps = function(sim_future_output_dir, pop_filepa
 #   }
 #   par(mfrow=c(1,1), mar=c(5,4,4,2))
 #   if(save_plots) dev.off()
-#   
-#   
+#
+#
 # }
 
 
 
 
+####################################################################################
+# barplots: percent reduction in burden relative to a reference experiment at a
+#   specified reference year (e.g., to-present simulation at 2025)
+####################################################################################
+
+plot_relative_burden_barplots_vs_ref_year = function(sim_future_output_dir, reference_sim_output_dir, pop_filepath,
+                                                     district_subset, cur_admins,
+                                                     barplot_start_year, barplot_end_year,
+                                                     reference_experiment_name, ref_year,
+                                                     pyr='', chw_cov='',
+                                                     scenario_names, experiment_names, scenario_palette,
+                                                     LLIN2y_flag=FALSE, overwrite_files=FALSE,
+                                                     separate_plots_flag=FALSE, standard_max_y=0.95,
+                                                     show_error_bar=FALSE, burden_metric_subset=c()){
+  admin_pop = read.csv(pop_filepath)
+
+  burden_metrics      = c('PfPR','PfPR','incidence','incidence','directMortality','directMortality','allMortality','allMortality')
+  burden_colnames     = c('average_PfPR_U5','average_PfPR_all','incidence_U5','incidence_all',
+                          'direct_death_rate_mean_U5','direct_death_rate_mean_all','all_death_rate_mean_U5','all_death_rate_mean_all')
+  burden_metric_names = c('PfPR (U5)','PfPR (all ages)','incidence (U5)','incidence (all ages)',
+                          'direct mortality (U5)','direct mortality (all ages)','mortality (U5)','mortality (all ages)')
+  if(length(burden_metric_subset) >= 1){
+    idx = which(burden_metrics %in% burden_metric_subset)
+    burden_colnames     = burden_colnames[idx]
+    burden_metric_names = burden_metric_names[idx]
+  }
+
+  relative_burden_all_df = data.frame()
+  for(ss in 1:length(scenario_names)){
+    relative_burden_df = get_relative_burden_vs_ref_year(
+      reference_sim_output_filepath=reference_sim_output_dir,
+      reference_experiment_name=reference_experiment_name,
+      ref_start_year=ref_year, ref_end_year=ref_year,
+      comparison_sim_output_filepath=sim_future_output_dir,
+      comparison_experiment_name=experiment_names[ss],
+      comparison_scenario_name=scenario_names[ss],
+      start_year=barplot_start_year, end_year=barplot_end_year,
+      admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins,
+      LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+    relative_burden_df = relative_burden_df[, which(colnames(relative_burden_df) %in% c('scenario','Run_Number',burden_colnames))]
+    if(nrow(relative_burden_all_df) == 0) relative_burden_all_df = relative_burden_df else relative_burden_all_df = rbind(relative_burden_all_df, relative_burden_df)
+  }
+
+  relative_burden_all_df$scenario = factor(relative_burden_all_df$scenario, levels=scenario_names)
+
+  standard_min_y = 0
+  cur_min = min(relative_burden_all_df[, which(colnames(relative_burden_all_df) %in% burden_colnames)], na.rm=TRUE)
+  cur_max = max(relative_burden_all_df[, which(colnames(relative_burden_all_df) %in% burden_colnames)], na.rm=TRUE)
+  if(cur_min < standard_min_y) standard_min_y = cur_min
+  if(cur_max > standard_max_y) standard_max_y = cur_max
+
+  gg_list = list()
+  for(bb in 1:length(burden_colnames)){
+    current_burden_name = burden_colnames[bb]
+    burden_metric_name  = burden_metric_names[bb]
+    rel_burden_agg = as.data.frame(relative_burden_all_df) %>%
+      dplyr::select(match(c(current_burden_name,'scenario'), names(.))) %>%
+      dplyr::group_by(scenario) %>%
+      dplyr::summarise(mean_rel = mean(get(current_burden_name), na.rm=TRUE),
+                       max_rel  = max(get(current_burden_name),  na.rm=TRUE),
+                       min_rel  = min(get(current_burden_name),  na.rm=TRUE))
+    gg_list[[bb]] = ggplot(rel_burden_agg) +
+      geom_bar(aes(x=scenario, y=mean_rel, fill=scenario), stat='identity') +
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_y, standard_max_y)) +
+      ylab(paste0('% change vs ', ref_year)) +
+      geom_hline(yintercept=0, color='black') +
+      ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
+      scale_fill_manual(values=scenario_palette) +
+      theme_gridlines_no_box() +
+      theme(legend.position='top', legend.box='horizontal', legend.title=element_blank(),
+            text=element_text(size=text_size), legend.text=element_text(size=text_size),
+            axis.title.x=element_blank(), axis.text.x=element_blank(),
+            axis.ticks.x=element_blank(), axis.line.x=element_blank(),
+            plot.margin=unit(c(0,1,1,0), 'cm'))
+    if(show_error_bar){
+      gg_list[[bb]] = gg_list[[bb]] +
+        geom_errorbar(aes(x=scenario, ymin=min_rel, ymax=max_rel), width=0.4, colour='black', alpha=0.9, size=1)
+    }
+    if(separate_plots_flag){
+      separate_plot = gg_list[[bb]] +
+        theme(legend.position='none', plot.title=element_blank(), text=element_text(size=separate_plot_text_size))
+      ggsave(paste0(sim_future_output_dir, '/_plots/barplot_percent_reduction_vs', ref_year, '_', burden_metric_name, '_', district_subset, '.png'),
+             separate_plot, dpi=600, width=4, height=3, units='in')
+    }
+  }
+
+  gg_list = append(list(ggpubr::as_ggplot(ggpubr::get_legend(gg_list[[1]]))), gg_list)
+  for(bb in 2:(length(burden_colnames)+1)){
+    gg_list[[bb]] = gg_list[[bb]] + theme(legend.position='none') + theme(text=element_text(size=text_size))
+  }
+  gg = grid.arrange(grobs=gg_list, layout_matrix=rbind(matrix(rep(1, ceiling(length(burden_colnames)/2)), nrow=1),
+                                                       matrix(2:(length(burden_colnames)+1), nrow=2, byrow=FALSE)))
+  return(gg)
+}
+
+
+####################################################################################
+# barplots: absolute burden averted relative to a reference experiment at a
+#   specified reference year (e.g., to-present simulation at 2025)
+#   y-axis is metric-specific (no shared scale) since units differ across metrics
+####################################################################################
+
+plot_difference_burden_barplots_vs_ref_year = function(sim_future_output_dir, reference_sim_output_dir, pop_filepath,
+                                                       district_subset, cur_admins,
+                                                       barplot_start_year, barplot_end_year,
+                                                       reference_experiment_name, ref_year,
+                                                       pyr='', chw_cov='',
+                                                       scenario_names, experiment_names, scenario_palette,
+                                                       LLIN2y_flag=FALSE, overwrite_files=FALSE,
+                                                       separate_plots_flag=FALSE,
+                                                       show_error_bar=FALSE, burden_metric_subset=c()){
+  admin_pop = read.csv(pop_filepath)
+
+  burden_metrics      = c('PfPR','PfPR','incidence','incidence','directMortality','directMortality','allMortality','allMortality')
+  burden_colnames     = c('average_PfPR_U5','average_PfPR_all','incidence_U5','incidence_all',
+                          'direct_death_rate_mean_U5','direct_death_rate_mean_all','all_death_rate_mean_U5','all_death_rate_mean_all')
+  burden_metric_names = c('PfPR (U5)','PfPR (all ages)','incidence (U5)','incidence (all ages)',
+                          'direct mortality (U5)','direct mortality (all ages)','mortality (U5)','mortality (all ages)')
+  burden_metric_units = c('prevalence (%)','prevalence (%)','cases per 1000/year','cases per 1000/year',
+                          'deaths per 1000/year','deaths per 1000/year','deaths per 1000/year','deaths per 1000/year')
+  if(length(burden_metric_subset) >= 1){
+    idx = which(burden_metrics %in% burden_metric_subset)
+    burden_colnames     = burden_colnames[idx]
+    burden_metric_names = burden_metric_names[idx]
+    burden_metric_units = burden_metric_units[idx]
+  }
+
+  difference_burden_all_df = data.frame()
+  for(ss in 1:length(scenario_names)){
+    difference_burden_df = get_difference_burden_vs_ref_year(
+      reference_sim_output_filepath=reference_sim_output_dir,
+      reference_experiment_name=reference_experiment_name,
+      ref_start_year=ref_year, ref_end_year=ref_year,
+      comparison_sim_output_filepath=sim_future_output_dir,
+      comparison_experiment_name=experiment_names[ss],
+      comparison_scenario_name=scenario_names[ss],
+      start_year=barplot_start_year, end_year=barplot_end_year,
+      admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins,
+      LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files)
+    difference_burden_df = difference_burden_df[, which(colnames(difference_burden_df) %in% c('scenario','Run_Number',burden_colnames))]
+    if(nrow(difference_burden_all_df) == 0) difference_burden_all_df = difference_burden_df else difference_burden_all_df = rbind(difference_burden_all_df, difference_burden_df)
+  }
+
+  difference_burden_all_df$scenario = factor(difference_burden_all_df$scenario, levels=scenario_names)
+
+  gg_list = list()
+  for(bb in 1:length(burden_colnames)){
+    current_burden_name = burden_colnames[bb]
+    burden_metric_name  = burden_metric_names[bb]
+    burden_metric_unit  = burden_metric_units[bb]
+    diff_burden_agg = as.data.frame(difference_burden_all_df) %>%
+      dplyr::select(match(c(current_burden_name,'scenario'), names(.))) %>%
+      dplyr::group_by(scenario) %>%
+      dplyr::summarise(mean_diff = mean(get(current_burden_name), na.rm=TRUE),
+                       max_diff  = max(get(current_burden_name),  na.rm=TRUE),
+                       min_diff  = min(get(current_burden_name),  na.rm=TRUE))
+    gg_list[[bb]] = ggplot(diff_burden_agg) +
+      geom_bar(aes(x=scenario, y=mean_diff, fill=scenario), stat='identity') +
+      scale_y_continuous(labels = if(grepl('PfPR', current_burden_name)) percent_format(accuracy = 0.1) else comma_format()) +
+      ylab(paste0('Averted vs ', ref_year, '\n(', burden_metric_unit, ')')) +
+      geom_hline(yintercept=0, color='black') +
+      ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +
+      scale_fill_manual(values=scenario_palette) +
+      theme_gridlines_no_box() +
+      theme(legend.position='top', legend.box='horizontal', legend.title=element_blank(),
+            text=element_text(size=text_size), legend.text=element_text(size=text_size),
+            axis.title.x=element_blank(), axis.text.x=element_blank(),
+            axis.ticks.x=element_blank(), axis.line.x=element_blank(),
+            plot.margin=unit(c(0,1,1,0), 'cm'))
+    if(show_error_bar){
+      gg_list[[bb]] = gg_list[[bb]] +
+        geom_errorbar(aes(x=scenario, ymin=min_diff, ymax=max_diff), width=0.4, colour='black', alpha=0.9, size=1)
+    }
+    if(separate_plots_flag){
+      separate_plot = gg_list[[bb]] +
+        theme(legend.position='none', plot.title=element_blank(), text=element_text(size=separate_plot_text_size))
+      ggsave(paste0(sim_future_output_dir, '/_plots/barplot_burden_averted_vs', ref_year, '_', burden_metric_name, '_', district_subset, '.png'),
+             separate_plot, dpi=600, width=4, height=3, units='in')
+    }
+  }
+
+  gg_list = append(list(ggpubr::as_ggplot(ggpubr::get_legend(gg_list[[1]]))), gg_list)
+  for(bb in 2:(length(burden_colnames)+1)){
+    gg_list[[bb]] = gg_list[[bb]] + theme(legend.position='none') + theme(text=element_text(size=text_size))
+  }
+  gg = grid.arrange(grobs=gg_list, layout_matrix=rbind(matrix(rep(1, ceiling(length(burden_colnames)/2)), nrow=1),
+                                                       matrix(2:(length(burden_colnames)+1), nrow=2, byrow=FALSE)))
+  return(gg)
+}
 
 
 
