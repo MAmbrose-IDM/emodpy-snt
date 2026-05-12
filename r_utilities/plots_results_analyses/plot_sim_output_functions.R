@@ -925,6 +925,9 @@ plot_simulation_output_burden_all = function(sim_future_output_dir, pop_filepath
         theme_classic()+ 
         theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size))
     }
+    if(burden_metric == 'PfPR'){
+      gg_list[[bb]] = gg_list[[bb]] + scale_y_continuous(labels = percent_format(accuracy = 1))
+    }
     if(plot_CI){
       gg_list[[bb]] =  gg_list[[bb]] +
         geom_ribbon(aes(ymin=min_burden, ymax=max_burden, fill=scenario), alpha=0.1, color=NA)+
@@ -1074,7 +1077,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       # scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
       # scale_y_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
       scale_x_continuous(n.breaks= 4) +
-      scale_y_continuous(n.breaks= 3) +
+      scale_y_continuous(n.breaks= 3, labels = if(grepl('PfPR', burden_metric)) percent_format(accuracy = 1) else waiver()) +
       theme_bw()+ 
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text=element_text(size = text_size), legend.text=element_text(size = text_size)) +  # legend.position = "none"
       facet_geo(~code, grid = grid_layout_state_locations, label="name")#, scales='free') 
@@ -1355,10 +1358,12 @@ plot_simulation_intervention_output = function(sim_future_output_dir, pop_filepa
     } else{
       # join past and future simulation trajectories
       to_present_df = cm_df[cm_df$scenario == 'to-present',]
-      final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
-      for(ss in 2:length(scenario_names)){
-        final_to_present_row$scenario = scenario_names[ss]
-        cm_df = rbind(cm_df, final_to_present_row)
+      if(nrow(to_present_df)>0){
+        final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+        for(ss in 2:length(scenario_names)){
+          final_to_present_row$scenario = scenario_names[ss]
+          cm_df = rbind(cm_df, final_to_present_row)
+        }
       }
     }
     write.csv(cm_df, cm_df_filepath, row.names=FALSE)
@@ -2344,7 +2349,7 @@ plot_difference_burden_barplots_vs_ref_year = function(sim_future_output_dir, re
                           'direct_death_rate_mean_U5','direct_death_rate_mean_all','all_death_rate_mean_U5','all_death_rate_mean_all')
   burden_metric_names = c('PfPR (U5)','PfPR (all ages)','incidence (U5)','incidence (all ages)',
                           'direct mortality (U5)','direct mortality (all ages)','mortality (U5)','mortality (all ages)')
-  burden_metric_units = c('prevalence (fraction)','prevalence (fraction)','cases per 1000/year','cases per 1000/year',
+  burden_metric_units = c('prevalence (%)','prevalence (%)','cases per 1000/year','cases per 1000/year',
                           'deaths per 1000/year','deaths per 1000/year','deaths per 1000/year','deaths per 1000/year')
   if(length(burden_metric_subset) >= 1){
     idx = which(burden_metrics %in% burden_metric_subset)
@@ -2384,7 +2389,7 @@ plot_difference_burden_barplots_vs_ref_year = function(sim_future_output_dir, re
                        min_diff  = min(get(current_burden_name),  na.rm=TRUE))
     gg_list[[bb]] = ggplot(diff_burden_agg) +
       geom_bar(aes(x=scenario, y=mean_diff, fill=scenario), stat='identity') +
-      scale_y_continuous(labels=comma_format()) +
+      scale_y_continuous(labels = if(grepl('PfPR', current_burden_name)) percent_format(accuracy = 0.1) else comma_format()) +
       ylab(paste0('Averted vs ', ref_year, '\n(', burden_metric_unit, ')')) +
       geom_hline(yintercept=0, color='black') +
       ggtitle(gsub('\\(births\\)', '', burden_metric_name)) +

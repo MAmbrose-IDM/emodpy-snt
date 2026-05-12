@@ -1522,11 +1522,14 @@ get_difference_burden_vs_ref_year = function(reference_sim_output_filepath, refe
 
 # national-level burden summary for all scenarios saved to CSV
 # accepts per-scenario output directories and year ranges so reference and future scenarios can differ
+# ref_scenario_name: scenario used as denominator for percent-reduction CSV; defaults to scenario_names[1]
+# national_population: if provided, generates a numbers_averted CSV for all-age incidence and mortality (counts = rate_per_1000 * population / 1000)
 create_csv_national_burden_all_scenarios = function(scenario_names, experiment_names, sim_output_dirs,
                                                     start_years, end_years,
                                                     pop_filepath, district_subset='allDistricts', cur_admins='all',
                                                     output_dir, LLIN2y_flag=FALSE, overwrite_files=FALSE,
-                                                    burden_metric_subset=c(), file_suffix=''){
+                                                    burden_metric_subset=c(), file_suffix='',
+                                                    ref_scenario_name=NULL, national_population=NULL){
   admin_pop = read.csv(pop_filepath)
 
   burden_metrics  = c('PfPR','PfPR','incidence','incidence','directMortality','directMortality','allMortality','allMortality')
@@ -1550,7 +1553,49 @@ create_csv_national_burden_all_scenarios = function(scenario_names, experiment_n
   burden_all_df$scenario = factor(burden_all_df$scenario, levels=scenario_names)
   burden_mean = burden_all_df %>% dplyr::select(-Run_Number) %>% group_by(scenario) %>% summarise_all(mean, na.rm=TRUE)
 
-  write.csv(burden_all_df, paste0(output_dir, '/national_burden_all_scenarios_bySeed', file_suffix, '.csv'), row.names=FALSE)
+  pfpr_cols = intersect(c('average_PfPR_U5', 'average_PfPR_all'), colnames(burden_mean))
+  if(length(pfpr_cols) > 0){
+    burden_mean = burden_mean %>% mutate(across(all_of(pfpr_cols), ~ round(. * 100, 1)))
+  }
+
+  # write.csv(burden_all_df, paste0(output_dir, '/national_burden_all_scenarios_bySeed', file_suffix, '.csv'), row.names=FALSE)
   write.csv(burden_mean, paste0(output_dir, '/national_burden_all_scenarios_summary', file_suffix, '.csv'), row.names=FALSE)
+
+  # percent reduction and absolute difference relative to reference scenario (defaults to first scenario, expected to be the ref year)
+  if(is.null(ref_scenario_name)) ref_scenario_name = as.character(scenario_names[1])
+  ref_row = burden_mean[as.character(burden_mean$scenario) == ref_scenario_name, ]
+  if(nrow(ref_row) == 1){
+    numeric_cols = names(burden_mean)[sapply(burden_mean, is.numeric)]
+    pct_reduction_df = burden_mean
+    burden_averted_df = burden_mean
+    for(col in numeric_cols){
+      ref_val = as.numeric(ref_row[[col]])
+      comp_vals = as.numeric(burden_mean[[col]])
+      burden_averted_df[[col]] = round(ref_val - comp_vals, 2)
+      if(!is.na(ref_val) && ref_val != 0){
+        pct_reduction_df[[col]] = round((ref_val - comp_vals) / ref_val * 100, 1)
+      } else {
+        pct_reduction_df[[col]] = NA_real_
+      }
+    }
+    write.csv(pct_reduction_df,  paste0(output_dir, '/national_burden_all_scenarios_pct_reduction', file_suffix, '.csv'), row.names=FALSE)
+    write.csv(burden_averted_df, paste0(output_dir, '/national_burden_all_scenarios_burden_averted', file_suffix, '.csv'), row.names=FALSE)
+
+    # numbers averted (total counts) for all-age incidence and mortality
+    if(!is.null(national_population)){
+      count_cols = intersect(c('incidence_all', 'all_death_rate_mean_all'), numeric_cols)
+      if(length(count_cols) > 0){
+        ref_idx = which(as.character(burden_mean$scenario) == ref_scenario_name)
+        numbers_averted_df = data.frame(scenario=as.character(burden_mean$scenario), stringsAsFactors=FALSE)
+        for(col in count_cols){
+          counts = as.numeric(burden_mean[[col]]) * national_population / 1000
+          ref_count = if(length(ref_idx) == 1) counts[ref_idx] else NA_real_
+          numbers_averted_df[[col]] = round(ref_count - counts, 0)
+        }
+        write.csv(numbers_averted_df, paste0(output_dir, '/national_burden_all_scenarios_numbers_averted', file_suffix, '.csv'), row.names=FALSE)
+      }
+    }
+  }
+
   return(invisible(burden_mean))
 }
