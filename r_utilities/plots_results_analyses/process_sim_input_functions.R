@@ -45,13 +45,22 @@ get_cm_timeseries_by_state = function(cm_filepath, admin_info, end_year, exp_nam
       }
     }
   }
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    cm_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - cm_repeated$year[1])){
-      temp_year = cm_repeated
-      temp_year$year = cm_repeated$year + rr
-      temp_year$simday = cm_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Per-row extrapolation of duration == -1 rows up to end_year. See the
+  # parallel block in get_vacc_timeseries_by_state for the reasoning -- the
+  # previous version (using cm_repeated$year[1] for the loop length and a
+  # global max(year) < end_year gate) under-extrapolated some admins and
+  # would silently skip extrapolation when any admin's rows already reached
+  # end_year.
+  if(any(input_df$duration == -1)){
+    cm_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - cm_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(cm_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      cm_extended      = cm_repeated[rep_idx, , drop = FALSE]
+      cm_extended$year   = cm_extended$year   + offset
+      cm_extended$simday = cm_extended$simday + offset * 365
+      input_df = rbind(input_df, cm_extended)
     }
   }
   
@@ -121,13 +130,22 @@ get_cm_timeseries_exp = function(cm_filepath, pop_sizes, end_year, exp_name, cur
       }
     }
   }
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    cm_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - cm_repeated$year[1])){
-      temp_year = cm_repeated
-      temp_year$year = cm_repeated$year + rr
-      temp_year$simday = cm_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Per-row extrapolation of duration == -1 rows up to end_year. See the
+  # parallel block in get_vacc_timeseries_by_state for the reasoning -- the
+  # previous version (using cm_repeated$year[1] for the loop length and a
+  # global max(year) < end_year gate) under-extrapolated some admins and
+  # would silently skip extrapolation when any admin's rows already reached
+  # end_year.
+  if(any(input_df$duration == -1)){
+    cm_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - cm_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(cm_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      cm_extended      = cm_repeated[rep_idx, , drop = FALSE]
+      cm_extended$year   = cm_extended$year   + offset
+      cm_extended$simday = cm_extended$simday + offset * 365
+      input_df = rbind(input_df, cm_extended)
     }
   }
   # if there are multiple values in a single year (for a single DS/LGA), take the mean of those values
@@ -209,13 +227,26 @@ get_itn_anc_timeseries_by_state = function(input_filepath, admin_info, end_year,
       }
     }
   }
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    df_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - df_repeated$year[1])){
-      temp_year = df_repeated
-      temp_year$year = df_repeated$year + rr
-      temp_year$simday = df_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Extrapolate every duration == -1 row forward to end_year, per row. The
+  # previous version used df_repeated$year[1] for the loop length and applied
+  # the same offset to every row, which (1) made some admins fall short of
+  # end_year (line ends at 2034 instead of 2035) when their derived year was
+  # later than the first row's, and (2) was gated by a global
+  # max(input_df$year) < end_year check that incorrectly skipped extrapolation
+  # whenever a single admin's rescaled rows already reached end_year while
+  # other admins still had a duration=-1 row at projection_start_year.
+  # n_extra is computed per row so each row extends exactly to end_year and
+  # rows already at/past end_year produce no extras.
+  if(any(input_df$duration == -1)){
+    df_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - df_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(df_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      df_extended      = df_repeated[rep_idx, , drop = FALSE]
+      df_extended$year   = df_extended$year   + offset
+      df_extended$simday = df_extended$simday + offset * 365
+      input_df = rbind(input_df, df_extended)
     }
   }
   
@@ -294,13 +325,26 @@ get_itn_epi_timeseries_by_state = function(input_filepath, admin_info, end_year,
       }
     }
   }
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    df_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - df_repeated$year[1])){
-      temp_year = df_repeated
-      temp_year$year = df_repeated$year + rr
-      temp_year$simday = df_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Extrapolate every duration == -1 row forward to end_year, per row. The
+  # previous version used df_repeated$year[1] for the loop length and applied
+  # the same offset to every row, which (1) made some admins fall short of
+  # end_year (line ends at 2034 instead of 2035) when their derived year was
+  # later than the first row's, and (2) was gated by a global
+  # max(input_df$year) < end_year check that incorrectly skipped extrapolation
+  # whenever a single admin's rescaled rows already reached end_year while
+  # other admins still had a duration=-1 row at projection_start_year.
+  # n_extra is computed per row so each row extends exactly to end_year and
+  # rows already at/past end_year produce no extras.
+  if(any(input_df$duration == -1)){
+    df_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - df_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(df_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      df_extended      = df_repeated[rep_idx, , drop = FALSE]
+      df_extended$year   = df_extended$year   + offset
+      df_extended$simday = df_extended$simday + offset * 365
+      input_df = rbind(input_df, df_extended)
     }
   }
   
@@ -495,13 +539,26 @@ get_vacc_timeseries_by_state = function(input_filepath, admin_info, end_year, ex
       }
     }
   }
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    df_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - df_repeated$year[1])){
-      temp_year = df_repeated
-      temp_year$year = df_repeated$year + rr
-      temp_year$simday = df_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Extrapolate every duration == -1 row forward to end_year, per row. The
+  # previous version used df_repeated$year[1] for the loop length and applied
+  # the same offset to every row, which (1) made some admins fall short of
+  # end_year (line ends at 2034 instead of 2035) when their derived year was
+  # later than the first row's, and (2) was gated by a global
+  # max(input_df$year) < end_year check that incorrectly skipped extrapolation
+  # whenever a single admin's rescaled rows already reached end_year while
+  # other admins still had a duration=-1 row at projection_start_year.
+  # n_extra is computed per row so each row extends exactly to end_year and
+  # rows already at/past end_year produce no extras.
+  if(any(input_df$duration == -1)){
+    df_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - df_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(df_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      df_extended      = df_repeated[rep_idx, , drop = FALSE]
+      df_extended$year   = df_extended$year   + offset
+      df_extended$simday = df_extended$simday + offset * 365
+      input_df = rbind(input_df, df_extended)
     }
   }
   
@@ -583,13 +640,26 @@ get_pmc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
     input_df$duration = -1  # default value
   }
 
-  if(any(input_df$duration==-1) & (max(input_df$year)<end_year)){
-    df_repeated = input_df[input_df$duration == -1,]
-    for(rr in 1:(end_year - df_repeated$year[1])){
-      temp_year = df_repeated
-      temp_year$year = df_repeated$year + rr
-      temp_year$simday = df_repeated$simday + rr*365
-      input_df = rbind(input_df, temp_year)
+  # Extrapolate every duration == -1 row forward to end_year, per row. The
+  # previous version used df_repeated$year[1] for the loop length and applied
+  # the same offset to every row, which (1) made some admins fall short of
+  # end_year (line ends at 2034 instead of 2035) when their derived year was
+  # later than the first row's, and (2) was gated by a global
+  # max(input_df$year) < end_year check that incorrectly skipped extrapolation
+  # whenever a single admin's rescaled rows already reached end_year while
+  # other admins still had a duration=-1 row at projection_start_year.
+  # n_extra is computed per row so each row extends exactly to end_year and
+  # rows already at/past end_year produce no extras.
+  if(any(input_df$duration == -1)){
+    df_repeated = input_df[input_df$duration == -1, ]
+    n_extra     = pmax(end_year - df_repeated$year, 0L)
+    if(any(n_extra > 0)){
+      rep_idx          = rep(seq_len(nrow(df_repeated)), n_extra)
+      offset           = sequence(n_extra)
+      df_extended      = df_repeated[rep_idx, , drop = FALSE]
+      df_extended$year   = df_extended$year   + offset
+      df_extended$simday = df_extended$simday + offset * 365
+      input_df = rbind(input_df, df_extended)
     }
   }
   
@@ -624,5 +694,52 @@ get_pmc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
   }
   input_ave_df$scenario = exp_name
   
+  return(input_ave_df)
+}
+
+
+
+##############
+# IRS
+##############
+get_irs_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year, get_state_level=TRUE){
+
+  input_df = read.csv(input_filepath)
+  if(!('seed' %in% colnames(input_df))) input_df$seed = 1
+  if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
+  if('State' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-State)
+
+  # filter to the simulation window
+  input_df = input_df %>% filter(year >= min_year, year <= end_year)
+
+  # admin-year skeleton so admins without IRS in a given year show coverage 0
+  admin_years = merge(admin_info, data.frame('year' = seq(min_year, end_year)), all = TRUE)
+  input_df = merge(input_df, admin_years, by = c('admin_name', 'year'), all = TRUE)
+  input_df$effective_coverage[is.na(input_df$effective_coverage)] = 0
+  input_df$IRS_coverage = input_df$effective_coverage
+
+  if(get_state_level){
+    # population-weighted state-level coverage
+    input_df$multiplied_IRS_cov = input_df$IRS_coverage * input_df$pop_size
+    input_df_agg <- input_df %>% dplyr::select(year, State, seed, multiplied_IRS_cov, pop_size) %>%
+      dplyr::group_by(year, State, seed) %>%
+      dplyr::summarise_all(sum) %>% ungroup()
+    input_df_agg$IRS_coverage = input_df_agg$multiplied_IRS_cov / input_df_agg$pop_size
+
+    input_ave_df = as.data.frame(input_df_agg) %>% dplyr::select(year, State, IRS_coverage) %>%
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise(mean_coverage = mean(IRS_coverage),
+                       max_coverage  = max(IRS_coverage),
+                       min_coverage  = min(IRS_coverage))
+  } else{
+    input_ave_df = as.data.frame(input_df) %>% dplyr::select(year, IRS_coverage, State, admin_name) %>%
+      dplyr::group_by(year, State, admin_name) %>%
+      dplyr::summarise(mean_coverage = mean(IRS_coverage),
+                       max_coverage  = max(IRS_coverage),
+                       min_coverage  = min(IRS_coverage))
+  }
+  input_ave_df$scenario = exp_name
+
   return(input_ave_df)
 }

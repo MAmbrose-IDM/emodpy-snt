@@ -855,3 +855,103 @@ plot_included_admin_map = function(sim_future_output_dir, pop_filepath, district
 }
 
 
+
+
+##############
+# IRS
+##############
+
+plot_state_grid_irs = function(sim_future_output_dir, pop_filepath, grid_layout_state_locations,
+                               min_year, max_year, sim_end_years,
+                               scenario_names, scenario_input_references, experiment_names, scenario_palette,
+                               separate_admin_lines_flag = FALSE,  overwrite_files=FALSE){
+
+  ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
+  # combine simulation output from multiple scenarios
+  ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
+  admin_info = read.csv(pop_filepath)
+  admin_info = admin_info[,c('admin_name','pop_size','State')]
+
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots'))) dir.create(paste0(sim_future_output_dir, '/_plots'))
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))) dir.create(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))
+  time_string = 'annual'
+  if(separate_admin_lines_flag){
+    separate_admin_string = '_separated_admins'
+  } else{
+    separate_admin_string = ''
+  }
+
+  # check whether IRS output already exists for this comparison
+  timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_irs_state_',time_string,'Timeseries', separate_admin_string, '.csv')
+  if(file.exists(timeseries_filepath) & !overwrite_files){
+    timeseries_df = read.csv(timeseries_filepath)
+  } else{
+    timeseries_df = data.frame()
+    for(ee in 1:length(experiment_names)){
+      intervention_csv_filepath = scenario_input_references[ee]
+      intervention_file_info = read.csv(intervention_csv_filepath)
+      experiment_intervention_name = experiment_names[ee]
+      end_year = sim_end_years[ee]
+      cur_int_row = which(intervention_file_info$ScenarioName == experiment_intervention_name)
+      input_filepath = paste0(hbhi_dir, '/simulation_inputs/', intervention_file_info$IRS_filename[cur_int_row], '.csv')
+
+      if(separate_admin_lines_flag){
+        cur_timeseries_agg = get_irs_timeseries_by_state(input_filepath=input_filepath, admin_info=admin_info, end_year=end_year, exp_name = scenario_names[ee],
+                                                         min_year=min_year, get_state_level=FALSE)
+      } else{
+        cur_timeseries_agg = get_irs_timeseries_by_state(input_filepath=input_filepath, admin_info=admin_info, end_year=end_year, exp_name = scenario_names[ee],
+                                                         min_year=min_year, get_state_level=TRUE)
+      }
+
+      if(nrow(timeseries_df)==0){
+        timeseries_df = cur_timeseries_agg
+      } else{
+        timeseries_df = rbind(timeseries_df, cur_timeseries_agg)
+      }
+    }
+
+    if(any(grepl('to-present', timeseries_df$scenario))){
+      # add the final 'to-present' row to all future simulations for a continuous plot
+      to_present_df = timeseries_df[timeseries_df$scenario == 'to-present',]
+      final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+      for(ss in 2:length(scenario_names)){
+        final_to_present_row$scenario = scenario_names[ss]
+        timeseries_df = rbind(timeseries_df, final_to_present_row)
+      }
+    }
+    write.csv(timeseries_df, timeseries_filepath, row.names=FALSE)
+  }
+
+
+  ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
+  # create scenario-comparison plots
+  ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
+  timeseries_df$scenario = factor(timeseries_df$scenario, levels=rev(scenario_names))
+  timeseries_df$code = timeseries_df$State
+
+  if(separate_admin_lines_flag){
+    gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
+        geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) +
+        scale_color_manual(values = scenario_palette) +
+        xlab('year') +
+        ylab(paste0('IRS effective coverage')) +
+        coord_cartesian(xlim=c(min_year, max_year), ylim=c(0,1))+
+        scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+        theme_bw()+
+        theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='free')
+
+  } else{
+    gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
+        geom_line(linewidth=1) +
+        scale_color_manual(values = scenario_palette) +
+        xlab('year') +
+        ylab(paste0('IRS effective coverage')) +
+        coord_cartesian(xlim=c(min_year, max_year), ylim=c(0,1))+
+        scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+        theme_bw()+
+        theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='free')
+  }
+  ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_IRS_by_state', separate_admin_string, '.png'), gg, dpi=600, width=12, height=10, units='in')
+}
