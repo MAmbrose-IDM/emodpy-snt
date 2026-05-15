@@ -22,6 +22,36 @@ text_size = 15
 save_plots = TRUE
 
 
+# Returns TRUE if the cached state-level timeseries CSV at `cache_path` exists,
+# overwrite is not forced, AND its set of scenarios exactly matches the
+# requested `expected_scenarios`. The plot_state_grid_* functions use this
+# instead of a bare file.exists() check so that adding a new scenario to the
+# coordinator (or renaming one) automatically invalidates the cached
+# per-state aggregate -- otherwise the new scenario silently fails to appear
+# in the geofacet plot.
+cache_matches_scenarios = function(cache_path, expected_scenarios, overwrite_files){
+  if(overwrite_files) return(FALSE)
+  if(!file.exists(cache_path)) return(FALSE)
+  cached = tryCatch(read.csv(cache_path, stringsAsFactors = FALSE),
+                    error = function(e) NULL)
+  if(is.null(cached) || !('scenario' %in% colnames(cached))) return(FALSE)
+  cached_scenarios = unique(cached$scenario)
+  # 'to-present' is appended at write time from per-scenario rows; allow it
+  # to be present in the cache even when not in the caller's scenario list.
+  cached_extras = setdiff(cached_scenarios, c(expected_scenarios, 'to-present'))
+  missing_from_cache = setdiff(expected_scenarios, cached_scenarios)
+  if(length(missing_from_cache) > 0 || length(cached_extras) > 0){
+    message(sprintf(
+      "  Cache %s out of date (missing: %s; extra: %s) -- regenerating.",
+      basename(cache_path),
+      if(length(missing_from_cache) > 0) paste(missing_from_cache, collapse = ', ') else '-',
+      if(length(cached_extras) > 0) paste(cached_extras, collapse = ', ') else '-'))
+    return(FALSE)
+  }
+  TRUE
+}
+
+
 
 
 #####################################################################################################
@@ -56,7 +86,7 @@ plot_state_grid_cm = function(sim_future_output_dir, pop_filepath, grid_layout_s
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_cm_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -173,7 +203,7 @@ plot_state_grid_itn_anc = function(sim_future_output_dir, pop_filepath, grid_lay
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_anc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input ITN ANC coverages
@@ -283,7 +313,7 @@ plot_state_grid_itn_epi = function(sim_future_output_dir, pop_filepath, grid_lay
   
   # check whether CM output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_epi_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input ITN epi coverages
@@ -396,7 +426,7 @@ plot_state_grid_smc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_smc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -509,7 +539,7 @@ plot_state_grid_itn = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_itn_mass_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -625,7 +655,7 @@ plot_state_grid_vacc = function(sim_future_output_dir, pop_filepath, grid_layout
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_vacc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -740,7 +770,7 @@ plot_state_grid_pmc = function(sim_future_output_dir, pop_filepath, grid_layout_
   
   # check whether SMC output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_pmc_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     # iterate through scenarios, storing input CM coverages
@@ -883,7 +913,7 @@ plot_state_grid_irs = function(sim_future_output_dir, pop_filepath, grid_layout_
 
   # check whether IRS output already exists for this comparison
   timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_irs_state_',time_string,'Timeseries', separate_admin_string, '.csv')
-  if(file.exists(timeseries_filepath) & !overwrite_files){
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
     timeseries_df = read.csv(timeseries_filepath)
   } else{
     timeseries_df = data.frame()
@@ -954,4 +984,94 @@ plot_state_grid_irs = function(sim_future_output_dir, pop_filepath, grid_layout_
         facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='free')
   }
   ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_IRS_by_state', separate_admin_string, '.png'), gg, dpi=600, width=12, height=10, units='in')
+}
+
+
+##############
+# IPTp
+##############
+
+plot_state_grid_iptp = function(sim_future_output_dir, pop_filepath, grid_layout_state_locations,
+                                 min_year, max_year, sim_end_years,
+                                 scenario_names, scenario_input_references, experiment_names, scenario_palette,
+                                 separate_admin_lines_flag = FALSE,  overwrite_files=FALSE){
+
+  admin_info = read.csv(pop_filepath)
+  admin_info = admin_info[,c('admin_name','pop_size','State')]
+
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots'))) dir.create(paste0(sim_future_output_dir, '/_plots'))
+  if(!dir.exists(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))) dir.create(paste0(sim_future_output_dir, '/_plots/timeseries_dfs'))
+  time_string = 'annual'
+  if(separate_admin_lines_flag){
+    separate_admin_string = '_separated_admins'
+  } else{
+    separate_admin_string = ''
+  }
+
+  timeseries_filepath = paste0(sim_future_output_dir, '/_plots/timeseries_dfs/df_iptp_state_',time_string,'Timeseries', separate_admin_string, '.csv')
+  if(cache_matches_scenarios(timeseries_filepath, scenario_names, overwrite_files)){
+    timeseries_df = read.csv(timeseries_filepath)
+  } else{
+    timeseries_df = data.frame()
+    for(ee in 1:length(experiment_names)){
+      intervention_csv_filepath = scenario_input_references[ee]
+      intervention_file_info = read.csv(intervention_csv_filepath)
+      experiment_intervention_name = experiment_names[ee]
+      end_year = sim_end_years[ee]
+      cur_int_row = which(intervention_file_info$ScenarioName == experiment_intervention_name)
+      input_filepath = paste0(hbhi_dir, '/simulation_inputs/', intervention_file_info$IPTp_filename[cur_int_row], '.csv')
+
+      if(separate_admin_lines_flag){
+        cur_timeseries_agg = get_iptp_timeseries_by_state(input_filepath=input_filepath, admin_info=admin_info, end_year=end_year, exp_name = scenario_names[ee],
+                                                          min_year=min_year, get_state_level=FALSE)
+      } else{
+        cur_timeseries_agg = get_iptp_timeseries_by_state(input_filepath=input_filepath, admin_info=admin_info, end_year=end_year, exp_name = scenario_names[ee],
+                                                          min_year=min_year, get_state_level=TRUE)
+      }
+
+      if(nrow(timeseries_df)==0){
+        timeseries_df = cur_timeseries_agg
+      } else{
+        timeseries_df = rbind(timeseries_df, cur_timeseries_agg)
+      }
+    }
+
+    if(any(grepl('to-present', timeseries_df$scenario))){
+      to_present_df = timeseries_df[timeseries_df$scenario == 'to-present',]
+      final_to_present_row = to_present_df[to_present_df$year == max(to_present_df$year),]
+      for(ss in 2:length(scenario_names)){
+        final_to_present_row$scenario = scenario_names[ss]
+        timeseries_df = rbind(timeseries_df, final_to_present_row)
+      }
+    }
+    write.csv(timeseries_df, timeseries_filepath, row.names=FALSE)
+  }
+
+  timeseries_df$scenario = factor(timeseries_df$scenario, levels=rev(scenario_names))
+  timeseries_df$code = timeseries_df$State
+
+  if(separate_admin_lines_flag){
+    gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
+        geom_line(aes(group=interaction(admin_name, scenario), color=scenario), linewidth=0.8) +
+        scale_color_manual(values = scenario_palette) +
+        xlab('year') +
+        ylab(paste0('IPTp coverage (>=1 dose)')) +
+        coord_cartesian(xlim=c(min_year, max_year), ylim=c(0,1))+
+        scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+        theme_bw()+
+        theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='free')
+  } else{
+    gg = ggplot(timeseries_df, aes(x=year, y=mean_coverage, color=scenario)) +
+        geom_line(linewidth=1) +
+        scale_color_manual(values = scenario_palette) +
+        xlab('year') +
+        ylab(paste0('IPTp coverage (>=1 dose)')) +
+        coord_cartesian(xlim=c(min_year, max_year), ylim=c(0,1))+
+        scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
+        theme_bw()+
+        theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), legend.text=element_text(size = text_size)) +
+        facet_geo(~code, grid = grid_layout_state_locations, label="name", scales='free')
+  }
+  ggsave(paste0(sim_future_output_dir, '/_plots/',time_string,'Timeseries_IPTp_by_state', separate_admin_string, '.png'), gg, dpi=600, width=12, height=10, units='in')
 }

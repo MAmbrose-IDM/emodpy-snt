@@ -743,3 +743,48 @@ get_irs_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
 
   return(input_ave_df)
 }
+
+
+
+##############
+# IPTp
+##############
+get_iptp_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year, get_state_level=TRUE){
+
+  input_df = read.csv(input_filepath)
+  if(!('seed' %in% colnames(input_df))) input_df$seed = 1
+  if('State' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-State)
+
+  # filter to the simulation window
+  input_df = input_df %>% filter(year >= min_year, year <= end_year)
+
+  # admin-year skeleton so admins without an IPTp row in a given year show 0
+  admin_years = merge(admin_info, data.frame('year' = seq(min_year, end_year)), all = TRUE)
+  input_df = merge(input_df, admin_years, by = c('admin_name', 'year'), all = TRUE)
+  input_df$coverage[is.na(input_df$coverage)] = 0
+  input_df$IPTp_coverage = input_df$coverage
+
+  if(get_state_level){
+    # population-weighted state-level coverage
+    input_df$multiplied_IPTp_cov = input_df$IPTp_coverage * input_df$pop_size
+    input_df_agg <- input_df %>% dplyr::select(year, State, seed, multiplied_IPTp_cov, pop_size) %>%
+      dplyr::group_by(year, State, seed) %>%
+      dplyr::summarise_all(sum) %>% ungroup()
+    input_df_agg$IPTp_coverage = input_df_agg$multiplied_IPTp_cov / input_df_agg$pop_size
+
+    input_ave_df = as.data.frame(input_df_agg) %>% dplyr::select(year, State, IPTp_coverage) %>%
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise(mean_coverage = mean(IPTp_coverage),
+                       max_coverage  = max(IPTp_coverage),
+                       min_coverage  = min(IPTp_coverage))
+  } else{
+    input_ave_df = as.data.frame(input_df) %>% dplyr::select(year, IPTp_coverage, State, admin_name) %>%
+      dplyr::group_by(year, State, admin_name) %>%
+      dplyr::summarise(mean_coverage = mean(IPTp_coverage),
+                       max_coverage  = max(IPTp_coverage),
+                       min_coverage  = min(IPTp_coverage))
+  }
+  input_ave_df$scenario = exp_name
+
+  return(input_ave_df)
+}
