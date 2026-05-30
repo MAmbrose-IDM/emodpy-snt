@@ -139,15 +139,142 @@ plot_relative_burden_barplots = function(sim_future_output_dir, pop_filepath, di
     gg_saved = grid.arrange(grobs = gg_list[-1], layout_matrix = matrix(c(1:(length(burden_colnames))), nrow=2, byrow=FALSE))
     ggsave(paste0(sim_future_output_dir, '/_plots/barplot_percent_reduction_burden_', pyr, '_', chw_cov, 'CHW_',district_subset,'.png'), gg_saved, dpi=600, width=14, height=7, units='in')
   }
-  
+
   # ----- combine all burden plots ----- #
   # gg = grid.arrange(grobs = gg_list, layout_matrix = matrix(c(1,1,2:(length(burden_colnames)+1)), ncol=2, byrow=TRUE))
   gg = grid.arrange(grobs = gg_list, layout_matrix = rbind(matrix(rep(1, length(burden_colnames)/2), nrow=1), matrix(2:(length(burden_colnames)+1), nrow=2, byrow=FALSE)))
-  
+
   return(gg)
 }
 
 
+####################################################################################
+# Grouped barplots: scenarios as grouped bars within each burden metric, U5 over all-ages
+####################################################################################
+# Companion to plot_relative_burden_barplots(). When only a few scenarios are being
+# compared, the per-metric panel layout looks sparse; this version instead returns just
+# two panels (U5 on top, all-age on bottom), where the x-axis groups are burden metrics
+# and bars within each group are colored by scenario (dodged).
+# Signature matches plot_relative_burden_barplots() for easy swap at call sites.
+plot_relative_burden_grouped_barplots = function(sim_future_output_dir, pop_filepath, district_subset, cur_admins,
+                                                 barplot_start_year, barplot_end_year,
+                                                 pyr, chw_cov,
+                                                 scenario_names, experiment_names, scenario_palette,
+                                                 LLIN2y_flag=FALSE, overwrite_files=FALSE, separate_plots_flag=FALSE,
+                                                 standard_max_y=0.1, show_error_bar=TRUE, align_seeds=TRUE,
+                                                 include_to_present=TRUE, burden_metric_subset=c()){
+  admin_pop = read.csv(pop_filepath)
+
+  # burden metrics (same set as plot_relative_burden_barplots)
+  burden_metrics      = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')
+  burden_colnames     = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')
+  if(length(burden_metric_subset) >= 1){
+    keep_idx = which(burden_metrics %in% burden_metric_subset)
+    burden_metrics      = burden_metrics[keep_idx]
+    burden_colnames     = burden_colnames[keep_idx]
+    burden_metric_names = burden_metric_names[keep_idx]
+  }
+
+  # determine reference scenario (same logic as plot_relative_burden_barplots)
+  if(include_to_present){
+    reference_experiment_name = experiment_names[2]
+    comparison_start_index = 3
+  } else{
+    reference_experiment_name = experiment_names[1]
+    comparison_start_index = 2
+  }
+
+  # compute % reductions for each comparison scenario relative to reference
+  relative_burden_all_df = data.frame()
+  for(ss in comparison_start_index:length(scenario_names)){
+    comparison_experiment_name = experiment_names[ss]
+    comparison_scenario_name = scenario_names[ss]
+    relative_burden_df = get_relative_burden(sim_output_filepath=sim_future_output_dir,
+                                             reference_experiment_name=reference_experiment_name,
+                                             comparison_experiment_name=comparison_experiment_name,
+                                             comparison_scenario_name=comparison_scenario_name,
+                                             start_year=barplot_start_year, end_year=barplot_end_year,
+                                             admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins,
+                                             LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+    relative_burden_df = relative_burden_df[, which(colnames(relative_burden_df) %in% c('scenario', 'Run_Number', burden_colnames))]
+    if(nrow(relative_burden_all_df) == 0){
+      relative_burden_all_df = relative_burden_df
+    } else{
+      relative_burden_all_df = rbind(relative_burden_all_df, relative_burden_df)
+    }
+  }
+
+  # keep scenario factor order matching scenario_names
+  scenario_order = scenario_names[comparison_start_index:length(scenario_names)]
+  relative_burden_all_df$scenario = factor(relative_burden_all_df$scenario, levels=scenario_order)
+
+  # reshape to long form: scenario, burden_col, rel_reduction
+  long_df = relative_burden_all_df %>%
+    tidyr::pivot_longer(cols = all_of(burden_colnames), names_to = 'burden_col', values_to = 'rel_reduction')
+
+  # attach metric family name (without age suffix) and age group
+  col_to_metric_name = setNames(burden_metric_names, burden_colnames)
+  long_df$burden_metric_name = col_to_metric_name[long_df$burden_col]
+  long_df$age_group     = ifelse(grepl('\\(U5\\)', long_df$burden_metric_name), 'U5', 'all ages')
+  long_df$metric_family = gsub(' \\(U5\\)| \\(all ages\\)', '', long_df$burden_metric_name)
+  # preserve order of metric families as they first appear in burden_metric_names
+  metric_family_levels = unique(gsub(' \\(U5\\)| \\(all ages\\)', '', burden_metric_names))
+  long_df$metric_family = factor(long_df$metric_family, levels=metric_family_levels)
+
+  # aggregate across runs: mean / min / max per scenario x metric x age group
+  agg_df = long_df %>%
+    dplyr::group_by(scenario, age_group, metric_family) %>%
+    dplyr::summarise(mean_rel = mean(rel_reduction),
+                     min_rel  = min(rel_reduction),
+                     max_rel  = max(rel_reduction),
+                     .groups = 'drop')
+
+  # y-axis range: widen if data exceeds the standard window
+  standard_min_y_use = min(0, min(agg_df$mean_rel))
+  standard_max_y_use = max(standard_max_y, max(agg_df$mean_rel))
+
+  # one grouped barplot per age group
+  age_groups = c('U5', 'all ages')
+  age_titles = c('U5' = 'Under-5', 'all ages' = 'All ages')
+  gg_list = list()
+  for(aa in seq_along(age_groups)){
+    cur_age = age_groups[aa]
+    cur_df  = agg_df[agg_df$age_group == cur_age, ]
+    gg = ggplot(cur_df, aes(x=metric_family, y=mean_rel, fill=scenario)) +
+      geom_bar(stat='identity', position=position_dodge(width=0.8), width=0.7) +
+      scale_y_continuous(labels=percent_format(), limits=c(standard_min_y_use, standard_max_y_use)) +
+      scale_fill_manual(values = scenario_palette) +
+      geom_hline(yintercept=0, color='black') +
+      ylab('Percent reduction') +
+      ggtitle(age_titles[cur_age]) +
+      theme_gridlines_no_box() +
+      theme(legend.position = 'top', legend.box='horizontal', legend.title=element_blank(),
+            text=element_text(size=text_size), legend.text=element_text(size=text_size),
+            axis.title.x = element_blank(),
+            axis.text.x = element_text(angle=20, vjust=1, hjust=0.8),
+            plot.title = element_text(size=rel(1)),#.15)),
+            plot.margin = unit(c(0,1,1,0), 'cm'))
+    if(show_error_bar){
+      gg = gg + geom_errorbar(aes(x=metric_family, ymin=min_rel, ymax=max_rel, group=scenario),
+                              position=position_dodge(width=0.8), width=0.3, colour='black', alpha=0.9, size=0.6)
+    }
+    gg_list[[aa]] = gg
+  }
+
+  # extract a single legend, strip from individual panels
+  legend_grob = ggpubr::as_ggplot(ggpubr::get_legend(gg_list[[1]]))
+  for(aa in seq_along(gg_list)){
+    gg_list[[aa]] = gg_list[[aa]] + theme(legend.position='none')
+  }
+
+  # layout: legend row (spans full width), U5 panel left | all-age panel right
+  gg_combined = grid.arrange(grobs = c(list(legend_grob), gg_list),
+                             layout_matrix = rbind(c(1, 1), c(2, 3)),
+                             heights = c(0.6, 3),
+                             widths = c(1, 1))
+  return(gg_combined)
+}
 
 
 
@@ -243,6 +370,131 @@ plot_relative_burden_barplots_by_state = function(sim_future_output_dir, pop_fil
     }
     ggsave(paste0(sim_future_output_dir, '/_plots/','barplot_percent_reduction_', burden_metric_name,'_stateGrid',file_suffix,'.png'), gg, dpi=600, width=18*.6, height=12*.6, units='in')  # , width=18, height=12, units='in'
   }
+}
+
+
+####################################################################################
+# Grouped state-grid barplots: bar groups = burden metric, fill = scenario, faceted by state
+####################################################################################
+# Companion to plot_relative_burden_barplots_by_state(). When only a few scenarios are
+# compared, this avoids producing 6-8 near-empty per-metric files. Instead saves TWO PNGs:
+#   - one for U5 metrics (all burden metrics plotted as grouped bars within each state)
+#   - one for all-age metrics (same layout)
+# Within each state facet: x-axis is burden metric, fill is scenario (dodged bars).
+# X-axis text is hidden in every facet; metric order is communicated via the plot subtitle.
+# Signature matches plot_relative_burden_barplots_by_state() for easy swap at call sites.
+plot_relative_burden_grouped_barplots_by_state = function(sim_future_output_dir, pop_filepath, grid_layout_state_locations,
+                                                          barplot_start_year, barplot_end_year,
+                                                          pyr, chw_cov,
+                                                          scenario_names, experiment_names, scenario_palette,
+                                                          LLIN2y_flag=FALSE, overwrite_files=FALSE, show_error_bar=TRUE, align_seeds=TRUE,
+                                                          burden_metric_subset=c(), include_to_present=TRUE, file_suffix=''){
+
+  admin_pop = read.csv(pop_filepath)
+
+  # burden metrics (same set as plot_relative_burden_barplots_by_state)
+  burden_metrics      = c('PfPR', 'PfPR', 'incidence', 'incidence', 'directMortality', 'directMortality', 'allMortality', 'allMortality')
+  burden_colnames     = c('average_PfPR_U5', 'average_PfPR_all', 'incidence_U5', 'incidence_all', 'direct_death_rate_mean_U5', 'direct_death_rate_mean_all', 'all_death_rate_mean_U5', 'all_death_rate_mean_all')
+  burden_metric_names = c('PfPR (U5)', 'PfPR (all ages)', 'incidence (U5)', 'incidence (all ages)', 'direct mortality (U5)', 'direct mortality (all ages)', 'mortality (U5)', 'mortality (all ages)')
+  if(length(burden_metric_subset) >= 1){
+    keep_idx = which(burden_metrics %in% burden_metric_subset)
+    burden_metrics      = burden_metrics[keep_idx]
+    burden_colnames     = burden_colnames[keep_idx]
+    burden_metric_names = burden_metric_names[keep_idx]
+  }
+
+  # determine reference scenario (same logic as plot_relative_burden_barplots_by_state)
+  if(include_to_present){
+    reference_experiment_name = experiment_names[2]
+    comparison_start_index = 3
+  } else{
+    reference_experiment_name = experiment_names[1]
+    comparison_start_index = 2
+  }
+
+  # compute % reductions for each comparison scenario relative to reference
+  relative_burden_all_df = data.frame()
+  for(ss in comparison_start_index:length(scenario_names)){
+    comparison_experiment_name = experiment_names[ss]
+    comparison_scenario_name = scenario_names[ss]
+    relative_burden_df = get_relative_burden_by_state(sim_output_filepath=sim_future_output_dir,
+                                                      reference_experiment_name=reference_experiment_name,
+                                                      comparison_experiment_name=comparison_experiment_name,
+                                                      comparison_scenario_name=comparison_scenario_name,
+                                                      start_year=barplot_start_year, end_year=barplot_end_year,
+                                                      admin_pop=admin_pop, district_subset=district_subset, cur_admins=cur_admins,
+                                                      LLIN2y_flag=LLIN2y_flag, overwrite_files=overwrite_files, align_seeds=align_seeds)
+    relative_burden_df = relative_burden_df[, which(colnames(relative_burden_df) %in% c('scenario', 'Run_Number', 'State', burden_colnames))]
+    if(nrow(relative_burden_all_df) == 0){
+      relative_burden_all_df = relative_burden_df
+    } else{
+      relative_burden_all_df = rbind(relative_burden_all_df, relative_burden_df)
+    }
+  }
+
+  # keep scenario factor order matching scenario_names
+  scenario_order = scenario_names[comparison_start_index:length(scenario_names)]
+  relative_burden_all_df$scenario = factor(relative_burden_all_df$scenario, levels=scenario_order)
+
+  # reshape to long form: scenario, State, burden_col, rel_reduction
+  long_df = relative_burden_all_df %>%
+    tidyr::pivot_longer(cols = all_of(burden_colnames), names_to = 'burden_col', values_to = 'rel_reduction')
+
+  # attach metric family name (no age suffix) and age group
+  col_to_metric_name = setNames(burden_metric_names, burden_colnames)
+  long_df$burden_metric_name = col_to_metric_name[long_df$burden_col]
+  long_df$age_group     = ifelse(grepl('\\(U5\\)', long_df$burden_metric_name), 'U5', 'all ages')
+  long_df$metric_family = gsub(' \\(U5\\)| \\(all ages\\)', '', long_df$burden_metric_name)
+  metric_family_levels  = unique(gsub(' \\(U5\\)| \\(all ages\\)', '', burden_metric_names))
+  long_df$metric_family = factor(long_df$metric_family, levels=metric_family_levels)
+
+  # aggregate across runs: mean / min / max per scenario x State x metric x age group
+  agg_df = long_df %>%
+    dplyr::group_by(scenario, State, age_group, metric_family) %>%
+    dplyr::summarise(mean_rel = mean(rel_reduction),
+                     min_rel  = min(rel_reduction),
+                     max_rel  = max(rel_reduction),
+                     .groups = 'drop')
+  agg_df$code = agg_df$State
+
+  # subtitle text communicates which metric maps to which x-position
+  subtitle_text = paste0('Within each state (left -> right): ', paste(metric_family_levels, collapse = '  |  '))
+
+  # one PNG per age group
+  age_groups   = c('U5', 'all ages')
+  age_titles   = c('U5' = 'Under-5', 'all ages' = 'All ages')
+  age_filetags = c('U5' = 'U5', 'all ages' = 'allAges')
+  for(aa in seq_along(age_groups)){
+    cur_age = age_groups[aa]
+    cur_df  = agg_df[agg_df$age_group == cur_age, ]
+
+    gg = ggplot(cur_df, aes(x=metric_family, y=mean_rel, fill=scenario)) +
+      geom_bar(stat='identity', position=position_dodge(width=0.55), width=0.5) +
+      scale_y_continuous(labels=percent_format(), n.breaks=4) +
+      scale_fill_manual(values = scenario_palette) +
+      geom_hline(yintercept=0, color='black') +
+      ylab('Percent reduction') +
+      ggtitle(paste0('Percent reduction in burden (', age_titles[cur_age], ')'),
+              subtitle = subtitle_text) +
+      theme_classic() +
+      theme(legend.position = 'top', legend.box='horizontal', legend.title=element_blank(),
+            text=element_text(size=text_size), legend.text=element_text(size=text_size),
+            plot.subtitle = element_text(size=text_size, hjust=0.5),
+            axis.title.x=element_blank(),
+            axis.text.x=element_text(angle=20, vjust=1, hjust=0.8),
+            plot.margin=unit(c(0,1,1,0), 'cm')) +
+      facet_geo(~code, grid = grid_layout_state_locations, label='name')
+
+    if(show_error_bar){
+      gg = gg + geom_errorbar(aes(x=metric_family, ymin=min_rel, ymax=max_rel, group=scenario),
+                              position=position_dodge(width=0.55), width=0.25, colour='black', alpha=0.9, size=0.6)
+    }
+
+    ggsave(paste0(sim_future_output_dir, '/_plots/barplot_percent_reduction_grouped_',
+                  age_filetags[cur_age], '_stateGrid', file_suffix, '.png'),
+           gg, dpi=600, width=18*.66, height=12*.77, units='in')
+  }
+  invisible(NULL)
 }
 
 
@@ -1006,7 +1258,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
     burden_metric = burden_metrics[bb]
     burden_metric_name = burden_metric_names[bb]
     burden_df = burden_df_all[,c('State','year', 'scenario', burden_metric)]
-    burden_df$mean_burden = burden_df[,burden_metric]
+    burden_df$mean_burden = burden_df[[burden_metric]]
 
     # connect the 'to-present' and 'future-projection' simulations in the plot. Two alternatives for how this is done, controlled by extend_past_timeseries:
     #   - (FALSE) extend the 'future-projection' lines all back to the end of the 'to-present' simulations, which is desirable if the future projection scenarios separate right away
@@ -1034,7 +1286,7 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
         reference_burden_cur = burden_df[burden_df$scenario=='to-present' & burden_df$year == relative_year, c('State','mean_burden')]
       } else{
         similarity_threshold = 0.1
-        all_ref_year_burdens = burden_df$mean_burden[burden_df$year == relative_year, c('State','mean_burden')]
+        all_ref_year_burdens = burden_df[burden_df$year == relative_year, c('State','mean_burden')]
         reference_burden_cur = all_ref_year_burdens %>% group_by(State) %>%
           summarise(mean_burden = mean(mean_burden)) %>% ungroup()
         # if(any(all_ref_year_burdens>(reference_burden_cur*(1+similarity_threshold))) | any(all_ref_year_burdens<(reference_burden_cur*(1-similarity_threshold)))){
@@ -1076,7 +1328,8 @@ plot_simulation_output_burden_by_state = function(sim_future_output_dir, pop_fil
       coord_cartesian(ylim=c(0, ifelse(!is.na(relative_year),2,NA)), xlim=c(min_year, max_year)) + 
       # scale_x_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
       # scale_y_continuous(breaks= pretty_breaks(), guide = guide_axis(check.overlap = TRUE)) +
-      scale_x_continuous(n.breaks= 4) +
+      # skip first and last year so adjacent facets' labels don't run together
+      scale_x_continuous(breaks = unique(c(min_year + 1, max_year - 1))) +
       scale_y_continuous(n.breaks= 3, labels = if(grepl('PfPR', burden_metric)) percent_format(accuracy = 1) else waiver()) +
       theme_bw()+ 
       theme(legend.position = "top", legend.box='horizontal', legend.title = element_blank(), text=element_text(size = text_size), legend.text=element_text(size = text_size)) +  # legend.position = "none"
