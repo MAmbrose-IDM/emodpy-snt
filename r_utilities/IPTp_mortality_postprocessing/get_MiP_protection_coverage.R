@@ -5,6 +5,87 @@
 
 
 
+#' New-style IPTp input loader
+#'
+#' Reads the two long-format CSVs produced by future_projection_intervention_
+#' inputs_NMSP_coverage.R (future scenarios) and 0_main_DHS_data_to_sim_inputs.R
+#' (to-present scenarios). The coordinator CSV stores a single basename
+#' ('IPTp_filename'); the doses CSV is found by appending '_doses' to that
+#' basename, matching the pairing convention used everywhere else in the
+#' pipeline. Returns the data in the shape the downstream postprocessing
+#' expects, so the call site can be a near drop-in replacement for
+#' get_IPTp_coverages().
+#'
+#' @param iptp_filepath full path to the coverage CSV ('admin_name', 'year',
+#'                      'coverage' columns; long format)
+#' @param iptp_doses_filepath full path to the dose-distribution CSV
+#'                      ('year', 'doses_1', 'doses_2', 'doses_3' columns)
+#' @param first_year first simulation year
+#' @param last_year last simulation year
+#' @param admin_subset optional vector of admin_names to restrict the coverage
+#'                      frame to (used when sims were run on a subset of LGAs)
+#'
+#' @return list with:
+#'   coverage  -- data frame: admin_name, year, coverage  (long)
+#'   doses     -- data frame: year, doses_1, doses_2, doses_3
+load_iptp_inputs = function(iptp_filepath, iptp_doses_filepath,
+                             first_year, last_year, admin_subset = NULL) {
+  if (!file.exists(iptp_filepath))
+    stop("IPTp coverage file not found: ", iptp_filepath)
+  if (!file.exists(iptp_doses_filepath))
+    stop("IPTp doses file not found: ", iptp_doses_filepath)
+
+  cov   = read.csv(iptp_filepath,        as.is = TRUE)
+  doses = read.csv(iptp_doses_filepath,  as.is = TRUE)
+
+  # Normalise admin names (replace '/' with '-', matching what the legacy
+  # get_IPTp_coverages did).
+  if ('admin_name' %in% colnames(cov)) {
+    cov$admin_name = gsub('/', '-', cov$admin_name)
+  }
+  if (!is.null(admin_subset)) {
+    admin_subset = gsub('/', '-', admin_subset)
+    cov = cov[cov$admin_name %in% admin_subset, , drop = FALSE]
+  }
+
+  # Filter to the simulation window.
+  cov   = cov[cov$year   >= first_year & cov$year   <= last_year, , drop = FALSE]
+  doses = doses[doses$year >= first_year & doses$year <= last_year, , drop = FALSE]
+
+  # Basic sanity checks.
+  required_cov = c('admin_name', 'year', 'coverage')
+  missing_cov  = setdiff(required_cov, colnames(cov))
+  if (length(missing_cov) > 0)
+    stop("IPTp coverage file ", basename(iptp_filepath),
+         " is missing required column(s): ",
+         paste(missing_cov, collapse = ', '))
+
+  required_doses = c('year', 'doses_1', 'doses_2', 'doses_3')
+  missing_doses  = setdiff(required_doses, colnames(doses))
+  if (length(missing_doses) > 0)
+    stop("IPTp doses file ", basename(iptp_doses_filepath),
+         " is missing required column(s): ",
+         paste(missing_doses, collapse = ', '))
+
+  dose_sums = doses$doses_1 + doses$doses_2 + doses$doses_3
+  if (any(abs(dose_sums - 1) > 1e-3, na.rm = TRUE))
+    warning("IPTp doses file ", basename(iptp_doses_filepath),
+            ": doses_1 + doses_2 + doses_3 != 1 for some year(s). Max abs diff = ",
+            signif(max(abs(dose_sums - 1), na.rm = TRUE), 3))
+
+  list(coverage = cov, doses = doses)
+}
+
+#' Derive the doses-file path from the coverage-file path by appending '_doses'
+#' before the '.csv' extension. Mirrors the convention enforced by the
+#' generator scripts: the coordinator stores only the coverage basename.
+iptp_doses_path_from_coverage_path = function(iptp_filepath) {
+  sub("\\.csv$", "_doses.csv", iptp_filepath)
+}
+
+
+
+
 get_IPTp_coverages = function(iptp_estimates_filename, iptp_dose_number_filename, future_projection_flag, first_year, last_year, coverage_string, iptp_estimates_ci_l_filename=NA, iptp_estimates_ci_u_filename=NA, iptp_project_trajectory_filename=NA,
                               admin_subset_flag=FALSE, admin_subset=NA){
   #'  set IPTp coverage (and number of doses) through time for a particular scenario. Uses information on whether simulation 

@@ -134,6 +134,12 @@ create_reference_name_match = function(lga_name){
                       'IREPODUN-2' = 'IREPODUN2',
                       'SURULERE-1' = 'SURULERE1',
                       'SURULERE-2' = 'SURULERE2',
+                      # LGA spelling variants observed in the 2014-2020 routine HF dataset
+                      'MBATOLI' = 'MBAITOLI',
+                      'AIYEDAADE' = 'AIYEDADE',
+                      'ATAKUNMOSA-EAST' = 'ATAKUMOSA-EAST',
+                      'ATAKUNMOSA-WEST' = 'ATAKUMOSA-WEST',
+                      'EMUOHA' = 'EMOHUA',
                       # '' = '',
                       # '' = '',
                       # BDI

@@ -1,4 +1,5 @@
 import os
+import warnings
 import pandas as pd
 import numpy as np
 import emodpy_malaria.malaria_config as malaria_config
@@ -216,6 +217,57 @@ def update_smc_access_ips(campaign, hfca, smc_df, use_same_access_ips_all_ages=F
 
     return {'admin_name': hfca}
 
+
+
+
+def update_spaq_access_ips(campaign, hfca, spaq_df, use_same_access_ips_all_ages=False):
+    # change the SMCAccess each year, but this does mean scrambling who is in low versus high access group between years
+    df = spaq_df[spaq_df['admin_name'] == hfca]
+
+    # ---- derive access age-groups for this admin from the flexible df ----
+    # One access group per unique (min_age, max_age); high-access fraction can differ by age group
+    age_groups = (df[['min_age', 'max_age', 'high_access_frac']]
+                  .drop_duplicates()
+                  .sort_values('min_age')
+                  .reset_index(drop=True))
+
+    # guard: within each year, age bands must be disjoint (touching endpoints OK).
+    # Overlap ACROSS years is fine — the IP is re-assigned each year.
+    for yr, yr_df in df.groupby('year'):
+        bands = (yr_df[['min_age', 'max_age']].drop_duplicates()
+                 .sort_values('min_age').reset_index(drop=True))
+        overlaps = [(tuple(bands.loc[i, ['min_age', 'max_age']]),
+                     tuple(bands.loc[j, ['min_age', 'max_age']]))
+                    for i in range(len(bands)) for j in range(i + 1, len(bands))
+                    if (bands.loc[i, 'min_age'] < bands.loc[j, 'max_age']) and
+                    (bands.loc[j, 'min_age'] < bands.loc[i, 'max_age'])]
+        if overlaps:
+            msg = ("update_spaq_access_ips: overlapping age groups within year %s for "
+                   "admin '%s': %s. Age groups must be disjoint within a year so each "
+                   "person is in exactly one access group." % (yr, hfca, overlaps))
+            warnings.warn('\n' + '!' * 70 + '\n' + msg + '\n' + '!' * 70)
+            raise ValueError(msg)
+
+
+    if df.shape[0] > 0:
+        # Set SMCAccess the week before each year's first round, per age group.
+        # The youngest group's assignment is extended down to age 0 so children
+        # below its min_age already hold the IP by the time they age into the
+        # eligible band (replaces the removed change_individual_property_at_age).
+        youngest_min_by_year = df.groupby('year')['min_age'].min().to_dict()
+        first_round_df = df.loc[df.groupby(['year', 'min_age', 'max_age'])['simday'].idxmin()]
+        for idx, row in first_round_df.iterrows():
+            max_age = row['max_age']
+            is_youngest = np.isclose(row['min_age'], youngest_min_by_year[row['year']])
+            ip_age_min = 0 if is_youngest else row['min_age']
+            change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7), coverage=1,
+                                                 new_ip_key='SMCAccess', new_ip_value="Low",
+                                                 target_age_min=ip_age_min, target_age_max=max_age)
+            change_individual_property_scheduled(campaign, start_day=(row['simday'] - 7),
+                                                 coverage=row['high_access_frac'],
+                                                 new_ip_key='SMCAccess', new_ip_value="High",
+                                                 target_age_min=ip_age_min, target_age_max=max_age)
+    return {'admin_name': hfca}
 
 
 

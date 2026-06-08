@@ -261,6 +261,26 @@ get_iptp_doses_from_dhs = function(hbhi_dir, dta_dir, years, sim_start_year, las
     rownames(iptp_doses_all_years) = c('1 dose', '2 doses', '3 doses')
     write.csv(iptp_doses_all_years, paste(hbhi_dir,'/simulation_inputs/IPTp/estimated_past_num_doses.csv', sep=''))
   }
+
+  # ── Long-format doses companion file ─────────────────────────────────────
+  # Matches the convention used by the new IPTp pipeline: one row per year
+  # with columns doses_1 / doses_2 / doses_3. Filename pairs with the long-
+  # format coverage file written by create_iptp_input_from_DHS, so the
+  # coordinator can store a single 'iptp_2010_toPresent' basename and the
+  # consumer constructs the doses path by appending '_doses'.
+  if(exists('iptp_doses_all_years') && !is.null(iptp_doses_all_years)){
+    doses_long = data.frame(
+      year    = as.integer(colnames(iptp_doses_all_years)),
+      doses_1 = as.numeric(iptp_doses_all_years[1, ]),
+      doses_2 = as.numeric(iptp_doses_all_years[2, ]),
+      doses_3 = as.numeric(iptp_doses_all_years[3, ])
+    )
+    out_dir = paste0(hbhi_dir, '/simulation_inputs/interventions_2010_toPresent')
+    if(!dir.exists(out_dir)) dir.create(out_dir)
+    write.csv(doses_long,
+              paste0(out_dir, '/iptp_2010_toPresent_doses.csv'),
+              row.names = FALSE)
+  }
  
   # # plot the number of IPTp doses reported in different surveys
   # par(mar=c(5,5,4,3))

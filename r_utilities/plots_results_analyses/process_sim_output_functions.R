@@ -22,7 +22,7 @@ get_total_burden = function(sim_output_filepath, experiment_name, admin_pop, com
   if(file.exists(output_filename) & !overwrite_files){
     burden_means = read.csv(output_filename)
   } else{
-    burden_df = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'))
+    burden_df = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'))
     # subset to appropriate time period
     burden_df = burden_df[intersect(which(burden_df$year >= comparison_start_year), which(burden_df$year <= comparison_end_year)),]
     if(!(cur_admins[1] == 'all')){
@@ -134,7 +134,7 @@ get_total_burden = function(sim_output_filepath, experiment_name, admin_pop, com
 #     burden_means = read.csv(output_filename)
 #   } else{
 #     
-#     burden_df = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+#     burden_df = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
 #     # subset to appropriate time period
 #     burden_df = burden_df[intersect(which(burden_df$year >= comparison_start_year), which(burden_df$year <= comparison_end_year)),]
 #     if(!(cur_admins[1] == 'all')){
@@ -252,7 +252,7 @@ get_cumulative_burden = function(sim_output_filepath, experiment_name, start_yea
       cur_admins = unique(admin_pop$admin_name)
     }
     
-    cur_file = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+    cur_file = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
     # filter to relevant years
     cur_file = cur_file[cur_file$year <= end_year,]
     cur_file = cur_file[cur_file$year >= start_year,]
@@ -362,7 +362,7 @@ get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, 
   if(file.exists(output_filename) & !overwrite_files){
     df_aggregated = read.csv(output_filename)
   }else{
-    cur_file = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+    cur_file = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
     # filter to relevant years
     cur_file = cur_file[cur_file$year <= end_year,]
     cur_file = cur_file[cur_file$year >= start_year,]
@@ -488,7 +488,7 @@ get_cumulative_burden_by_admin = function(sim_output_filepath, experiment_name, 
   if(file.exists(output_filename) & !overwrite_files){
     df_aggregated = read.csv(output_filename)
   }else{
-    cur_file = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+    cur_file = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
     # filter to relevant years
     cur_file = cur_file[cur_file$year <= end_year,]
     cur_file = cur_file[cur_file$year >= start_year,]
@@ -613,7 +613,7 @@ get_cumulative_U1_burden = function(sim_output_filepath, experiment_name, start_
       cur_admins = unique(admin_pop$admin_name)
     }
     
-    cur_file = fread(paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
+    cur_file = fread(file = paste0(sim_output_filepath, '/', experiment_name, '/malariaBurden_withAdjustments.csv'), check.names=TRUE)
     # filter to relevant years
     cur_file = cur_file[cur_file$year <= end_year,]
     cur_file = cur_file[cur_file$year >= start_year,]
@@ -852,7 +852,7 @@ get_burden_timeseries_exp = function(exp_filepath, exp_name, district_subset, cu
     cur_sim_output_agg = read.csv(output_filename)
   } else{
     # read in simulation information, subset to appropriate years
-    cur_sim_output = fread(paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
+    cur_sim_output = fread(file = paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
     cur_sim_output = cur_sim_output[intersect(which(cur_sim_output$year >= min_year), which(cur_sim_output$year <= max_year)),]
     # subset to appropriate admins
     cur_sim_output = cur_sim_output[cur_sim_output$admin_name %in% cur_admins,]  
@@ -956,7 +956,7 @@ get_burden_timeseries_by_lga = function(exp_filepath, exp_name, pop_filepath, ov
     admin_info = admin_info[,c('admin_name','pop_size','State')]
     
     # read in simulation information, subset to appropriate years
-    cur_sim_output = fread(paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
+    cur_sim_output = fread(file = paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
 
     # merge to get real-world population sizes in each admin and the State each admin belongs to
     cur_sim_output = merge(cur_sim_output, admin_info, by='admin_name')
@@ -1029,7 +1029,7 @@ get_burden_timeseries_by_state = function(exp_filepath, exp_name, pop_filepath, 
     admin_info = admin_info[,c('admin_name','pop_size','State')]
 
     # read in simulation information, subset to appropriate years
-    cur_sim_output = fread(paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
+    cur_sim_output = fread(file = paste0(exp_filepath, '/malariaBurden_withAdjustments.csv'))
 
     # merge to get real-world population sizes in each admin and the State each admin belongs to
     cur_sim_output = merge(cur_sim_output, admin_info, by='admin_name')
@@ -1092,8 +1092,8 @@ get_intervention_use_timeseries_state = function(exp_filepath, exp_name, pop_siz
   #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum ITN coverage across seeds, as well as columns for mean nets distributed and IRS coverages, and also a column for the scenario name
   
   # read in simulation information, merge to single dataframe, subset to appropriate years
-  interv_use_all = fread(paste0(exp_filepath, '/MonthlyUsageLLIN.csv'))
-  interv_dist_all = fread(paste0(exp_filepath, '/monthly_Event_Count.csv'))
+  interv_use_all = fread(file = paste0(exp_filepath, '/MonthlyUsageLLIN.csv'))
+  interv_dist_all = fread(file = paste0(exp_filepath, '/monthly_Event_Count.csv'))
   intervention_use_columns_orig = c('Bednet_Using')
   intervention_use_columns_new_name = c('itn_used_per_cap')
   intervention_use_columns = intervention_use_columns_orig[intervention_use_columns_orig %in% colnames(interv_use_all)]
@@ -1163,8 +1163,8 @@ get_intervention_use_timeseries_exp = function(exp_filepath, exp_name, cur_admin
   #'  @return data frame where each row is a time point and there are columns for the mean, minimum, and maximum ITN coverage across seeds, as well as columns for mean nets distributed and IRS coverages, and also a column for the scenario name
   
   # read in simulation information, merge to single dataframe, subset to appropriate years
-  interv_use_all = fread(paste0(exp_filepath, '/MonthlyUsageLLIN.csv'))
-  interv_dist_all = fread(paste0(exp_filepath, '/monthly_Event_Count.csv'))
+  interv_use_all = fread(file = paste0(exp_filepath, '/MonthlyUsageLLIN.csv'))
+  interv_dist_all = fread(file = paste0(exp_filepath, '/monthly_Event_Count.csv'))
   intervention_use_columns_orig = c('Bednet_Using')
   intervention_use_columns_new_name = c('coverage')
   intervention_use_columns = intervention_use_columns_orig[intervention_use_columns_orig %in% colnames(interv_use_all)]
@@ -1448,12 +1448,22 @@ get_ave_burden_by_state = function(sim_future_output_dir, pop_filepath,
       mutate(average_PfPR_all = round(average_PfPR_all,2)) %>%
       pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_all)
     write.csv(pfpr_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_allAge_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'.csv'), row.names=FALSE)
+    # percentage-formatted version (e.g., '5.2%' instead of 0.05)
+    pfpr_pct_df = burden_average_df %>% dplyr::select(State, scenario, average_PfPR_all) %>%
+      mutate(average_PfPR_all = paste0(round(average_PfPR_all * 100, 1), '%')) %>%
+      pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_all)
+    write.csv(pfpr_pct_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_allAge_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'_percent.csv'), row.names=FALSE)
   }
   if('average_PfPR_U5' %in% colnames(burden_all_df)){
     pfpr_df = burden_average_df %>% dplyr::select(State, scenario, average_PfPR_U5) %>%
       mutate(average_PfPR_U5 = round(average_PfPR_U5,2)) %>%
       pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_U5)
     write.csv(pfpr_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_U5_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'.csv'), row.names=FALSE)
+    # percentage-formatted version (e.g., '5.2%' instead of 0.05)
+    pfpr_pct_df = burden_average_df %>% dplyr::select(State, scenario, average_PfPR_U5) %>%
+      mutate(average_PfPR_U5 = paste0(round(average_PfPR_U5 * 100, 1), '%')) %>%
+      pivot_wider(id_cols=State, names_from=scenario, values_from=average_PfPR_U5)
+    write.csv(pfpr_pct_df, paste0(sim_future_output_dir, '/_plots/','average_PfPR_U5_by_state_', barplot_start_year,'_', barplot_end_year, file_suffix,'_percent.csv'), row.names=FALSE)
   }
 
 }

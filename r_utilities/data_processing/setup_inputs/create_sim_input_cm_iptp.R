@@ -147,7 +147,7 @@ create_iptp_input_from_DHS = function(hbhi_dir, iptp_variable_name='iptp', sim_s
   # convert from wide to long format to make each seed its own row
   coverage_df = reshape2::melt(sample_df, id.vars=c("admin_name", "year"))
   colnames(coverage_df)[colnames(coverage_df)=='variable'] = 'seed'
-  colnames(coverage_df)[colnames(coverage_df)=='value'] = 'IPTp_coverage'
+  colnames(coverage_df)[colnames(coverage_df)=='value'] = 'coverage'
   # replace "sample_" with "" in the seed column
   coverage_df$seed = gsub('sample_','',coverage_df$seed)
   if(length(unique(coverage_df$seed))<=1){
