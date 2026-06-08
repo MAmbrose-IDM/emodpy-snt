@@ -13,7 +13,7 @@ from emodpy_malaria.interventions.drug_campaign import add_drug_campaign
 from emodpy_malaria.interventions.diag_survey import add_diagnostic_survey
 from snt.support_files.malaria_vaccdrug_campaigns import add_vaccdrug_campaign
 from emodpy_malaria.interventions.adherentdrug import adherent_drug
-from snt.helpers_sim_setup import update_smc_access_ips
+from snt.helpers_sim_setup import update_smc_access_ips, update_spaq_access_ips
 from emodpy_malaria.interventions.vaccine import add_scheduled_vaccine, add_triggered_vaccine
 from emodpy_malaria.interventions.common import add_triggered_campaign_delay_event, add_campaign_event
 from emod_api.interventions.common import BroadcastEvent, PropertyValueChanger, DelayedIntervention, change_individual_property_scheduled
@@ -693,6 +693,69 @@ def add_hfca_smc(campaign, smc_df, hfca, adherence_multiplier=1, sp_resist_day1_
     return len(df)
 
 
+
+
+def add_hfca_spaq(campaign, spaq_df, hfca, adherence_multiplier=1, sp_resist_day1_multiply=1, seed_index=0):
+    df = spaq_df[spaq_df['admin_name'] == hfca]
+    if df.shape[0] > 0:
+        if 'seed' in df.columns.values:
+            df = df[df['seed'] == seed_index]
+        if 'adherence' in spaq_df.columns.values:
+            adherent_drug_configs = smc_adherent_configuration(campaign,
+                                                               adherence=df['adherence'].values[
+                                                                             0] * adherence_multiplier,
+                                                               sp_resist_day1_multiply=sp_resist_day1_multiply)
+        else:
+            default_adherence = 0.8
+            adherent_drug_configs = smc_adherent_configuration(campaign,
+                                                               adherence=default_adherence * adherence_multiplier,
+                                                               sp_resist_day1_multiply=sp_resist_day1_multiply)
+        for r, row in df.iterrows():
+            cov_high = row['coverage_high_access']
+            cov_low = row['coverage_low_access']
+            min_age = row['min_age']
+            max_age = row['max_age']
+
+            # set diagnostic so that no one should be excluded from SMC due to fever
+            add_diagnostic_survey(campaign, start_day=row['simday'],
+                                  coverage=1,
+                                  target={"agemin": min_age, "agemax": max_age},
+                                  diagnostic_type='FEVER',
+                                  diagnostic_threshold=0.5,
+                                  # SVET - do these configs works? seems like we should make an actual broadcast
+                                  # event, but should give it a shot
+                                  negative_diagnosis_configs=[{
+                                      "Broadcast_Event": "No_SMC_Fever",
+                                      "class": "BroadcastEvent"}],
+                                  positive_diagnosis_configs=[{
+                                      "Broadcast_Event": "No_SMC_Fever",
+                                      # currently set so that no one should be excluded from SMC due to fever,
+                                      # to include fever discrimination, change to "Has_SMC_Fever"
+                                      "class": "BroadcastEvent"}]
+                                  )
+            # High access
+            add_drug_campaign(campaign, 'SMC', start_days=[row['simday']],
+                              coverage=cov_high, target_group={'agemin': min_age, 'agemax': max_age},
+                              listening_duration=2,
+                              trigger_condition_list=['No_SMC_Fever'],
+                              ind_property_restrictions=[{'SMCAccess': 'High'}],
+                              adherent_drug_configs=[adherent_drug_configs]
+                              )
+            # Low access
+            add_drug_campaign(campaign, 'SMC', start_days=[row['simday']],
+                              coverage=cov_low, target_group={'agemin': min_age, 'agemax': max_age},
+                              listening_duration=2,
+                              trigger_condition_list=['No_SMC_Fever'],
+                              ind_property_restrictions=[{'SMCAccess': 'Low'}],
+                              adherent_drug_configs=[adherent_drug_configs]
+                              )
+
+    return len(df)
+
+
+
+
+
 def calc_high_low_access_coverages(coverage_all, high_access_frac):
     if (high_access_frac < 1) & (coverage_all >= high_access_frac):
         coverage_high = 1
@@ -1178,7 +1241,7 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
                           itn_decay_params=pd.DataFrame(),
                           itn_anc_adult_birthday_years=None, itn_epi_df=pd.DataFrame(), itn_cont_df=pd.DataFrame(),
                           itn_chw_df=pd.DataFrame(), itn_chw_annual_df=pd.DataFrame(),
-                          irs_df=pd.DataFrame(), lsm_df=pd.DataFrame(), smc_df=pd.DataFrame(), pmc_df=pd.DataFrame(), vacc_df=pd.DataFrame(),
+                          irs_df=pd.DataFrame(), lsm_df=pd.DataFrame(), spaq_df=pd.DataFrame(), smc_df=pd.DataFrame(), pmc_df=pd.DataFrame(), vacc_df=pd.DataFrame(),
                           vacc_char_df=pd.DataFrame(), vacc_df_2=pd.DataFrame(), epi_vacc_df=pd.DataFrame(), use_same_access_ips_all_ages=False,
                           sp_resist_day1_multiply=1, adherence_multiplier=1, use_smc_vaccine_proxy=False):
     event_list = []
@@ -1200,6 +1263,14 @@ def add_all_interventions(campaign, hfca, seed_index=1, hs_df=pd.DataFrame(), nm
                                    sp_resist_day1_multiply=sp_resist_day1_multiply, seed_index=seed_index)
         if has_smc > 0:
             event_list.append('Received_Campaign_Drugs')
+    if not spaq_df.empty:
+        has_spaq = update_spaq_access_ips(campaign, spaq_df=spaq_df, hfca=hfca,
+                                        use_same_access_ips_all_ages=use_same_access_ips_all_ages)
+        has_spaq = add_hfca_spaq(campaign, spaq_df=spaq_df, hfca=hfca, adherence_multiplier=adherence_multiplier,
+                               sp_resist_day1_multiply=sp_resist_day1_multiply, seed_index=seed_index)
+        if has_spaq > 0:
+            event_list.append('Received_Campaign_Drugs')
+
     if not pmc_df.empty:
         has_pmc = add_ds_vaccpmc(campaign, pmc_df=pmc_df, hfca=hfca)  # per default use vaccpmc
         if has_pmc > 0:

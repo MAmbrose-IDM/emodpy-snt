@@ -453,6 +453,69 @@ get_smc_timeseries_by_state = function(input_filepath, admin_info, end_year, exp
 
 
 ##############
+# SPAQ (combined SMC + IPTsc) -- coverage for ONE age band (min_age/max_age rows)
+##############
+# SPAQ files carry several age bands as separate rows: [0.25,5) & [5,10) from SMC,
+# plus [5,12) & [12,16) from the school-based IPTsc fold-in. Select one band per call
+# via band_min/band_max. Effective coverage =
+#   coverage_high_access*high_access_frac + coverage_low_access*(1-high_access_frac).
+# A band absent from a file (e.g. [5,12)/[12,16) in spaq_bau) yields all-zero coverage.
+get_spaq_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year,
+                                        band_min, band_max, get_state_level=TRUE){
+
+  input_df = read.csv(input_filepath)
+  if(!('seed' %in% colnames(input_df))) input_df$seed = 1
+  if('seasonality_archetype' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-seasonality_archetype)
+  if('pop_size' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-pop_size)
+  if('date_estimate' %in% colnames(input_df)) input_df = input_df %>% dplyr::select(-date_estimate)
+
+  # subset to the requested age band BEFORE any averaging (otherwise bands/rounds mix)
+  input_df = input_df[input_df$min_age == band_min & input_df$max_age == band_max, , drop=FALSE]
+
+  # effective per-round coverage for this band
+  input_df$band_coverage = input_df$coverage_high_access * input_df$high_access_frac +
+                            input_df$coverage_low_access * (1 - input_df$high_access_frac)
+
+  # mean across rounds within a year
+  input_df = input_df %>% dplyr::select(-State) %>%
+    filter(year>=min_year, year<=end_year) %>%
+    group_by(year, admin_name, seed) %>%
+    summarise_all(mean) %>% ungroup()
+
+  # fill all admin-years with 0 where this band's SPAQ isn't delivered in the input file
+  admin_years = merge(admin_info, data.frame('year'=seq(min_year, end_year)), all=TRUE)
+  input_df = merge(input_df, admin_years, by=c('admin_name','year'), all=TRUE)
+  input_df$band_coverage[is.na(input_df$band_coverage)] = 0
+  input_df$U5_coverage = input_df$band_coverage   # reuse the field name used by the aggregation below
+
+  # calculate values within state or admin
+  if(get_state_level){
+    # population-weighted coverage across admins
+    input_df$multiplied_U5_cov = input_df$U5_coverage * input_df$pop_size
+    input_df_agg_admin <- input_df %>% dplyr::select(year, State, seed, multiplied_U5_cov, pop_size) %>%
+      group_by(year, State, seed) %>% summarise_all(sum) %>% ungroup()
+    input_df_agg_admin$U5_coverage = input_df_agg_admin$multiplied_U5_cov / input_df_agg_admin$pop_size
+    input_ave_df = as.data.frame(input_df_agg_admin) %>% dplyr::select(year, State, U5_coverage) %>%
+      dplyr::group_by(year, State) %>%
+      dplyr::summarise(mean_coverage = mean(U5_coverage),
+                       max_coverage = max(U5_coverage),
+                       min_coverage = min(U5_coverage))
+  } else{
+    input_ave_df = as.data.frame(input_df) %>% dplyr::select(year, U5_coverage, State, admin_name) %>%
+      dplyr::group_by(year, State, admin_name) %>%
+      dplyr::summarise(mean_coverage = mean(U5_coverage),
+                       max_coverage = max(U5_coverage),
+                       min_coverage = min(U5_coverage))
+  }
+  input_ave_df$scenario = exp_name
+
+  return(input_ave_df)
+}
+
+
+
+
+##############
 # ITN mass campaign
 ##############
 get_itn_timeseries_by_state = function(input_filepath, admin_info, end_year, exp_name, min_year, get_state_level=TRUE){
