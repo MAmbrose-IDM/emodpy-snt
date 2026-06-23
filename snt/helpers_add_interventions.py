@@ -793,21 +793,22 @@ def change_rtss_ips(campaign):
 
 
 def add_epi_rtss(campaign, rtss_df):
-    start_days = list(rtss_df['RTSS_day'].unique())
+    start_days = list(rtss_df['RTSS_day'])
     coverage_levels = list(rtss_df['coverage'])
     rtss_types = list(rtss_df['vaccine'])
     rtss_touchpoints = list(rtss_df['rtss_touchpoints'])
-    rtss_event_names = [f'RTSS_{x + 1}_eligible' for x in range(len(rtss_touchpoints))]
+    rtss_event_names = [f'RTSS_{x + 1}_eligible' for x in range(len(rtss_touchpoints))]  # okay to have more than one each for primary or booster, just distinguishes them for broadcast events
 
     delay_distribution_name = list(rtss_df['distribution_name'])[0]
     std_dev_list = list(rtss_df['distribution_std'])
 
     initial_effect_list = list(rtss_df['initial_effect'])
     decay_time_constant_list = list(rtss_df['decay_time_constant'])
+    duration_list = list(rtss_df['duration'])
 
-    for tp_time_trigger, coverage, vtype, event_name, std, init_eff, decay_t in \
+    for tp_time_trigger, coverage, vtype, event_name, std, init_eff, decay_t, start_day, duration in \
             zip(rtss_touchpoints, coverage_levels, rtss_types, rtss_event_names, std_dev_list,
-                initial_effect_list, decay_time_constant_list):
+                initial_effect_list, decay_time_constant_list, start_days, duration_list):
 
         if delay_distribution_name == "LOG_NORMAL_DISTRIBUTION":
             delay_distribution = {"Delay_Period_Distribution": "LOG_NORMAL_DISTRIBUTION",
@@ -829,16 +830,18 @@ def add_epi_rtss(campaign, rtss_df):
         if delay_distribution:
             broadcast_event = DelayedIntervention(campaign, Configs=[broadcast_event],
                                                   Delay_Dict=delay_distribution)
-        add_triggered_campaign_delay_event(campaign, start_day=start_days[0],
+        add_triggered_campaign_delay_event(campaign, start_day=start_day,
                                            trigger_condition_list=['Births'],
                                            demographic_coverage=coverage,
+                                           listening_duration=duration,
                                            individual_intervention=broadcast_event)
 
         # TODO: Make EPI support booster1 and booster2
         if not vtype == 'booster':
             add_triggered_vaccine(campaign,
-                                  start_day=start_days[0],
+                                  start_day=start_day,
                                   trigger_condition_list=[event_name],
+                                  listening_duration=duration,
                                   intervention_name='RTSS',
                                   broadcast_event='Received_Vaccine',
                                   vaccine_type="AcquisitionBlocking",
@@ -848,8 +851,9 @@ def add_epi_rtss(campaign, rtss_df):
                                   efficacy_is_multiplicative=False)
         else:
             add_triggered_vaccine(campaign,
-                                  start_day=start_days[0],
+                                  start_day=start_day,
                                   trigger_condition_list=[event_name],
+                                  listening_duration=duration,
                                   ind_property_restrictions=[{'VaccineStatus': 'GotVaccine'}],
                                   intervention_name='RTSS',
                                   broadcast_event='Received_Vaccine',
