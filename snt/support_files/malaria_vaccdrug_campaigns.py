@@ -127,7 +127,11 @@ def add_vaccdrug_campaign(campaign, campaign_type: str = 'SMC', start_days: list
     if not receiving_vaccine_event_name:
         receiving_vaccine_event_name = f'Received_{campaign_type}_VaccDrug'
     if listening_durations is None:
-        listening_durations = [-1] * len(coverages)
+        try:
+            n = len(coverages)
+        except TypeError:
+            n = 1
+        listening_durations = [-1] * n
 
     if campaign_type == 'SMC':
         if receiving_drugs_event:
