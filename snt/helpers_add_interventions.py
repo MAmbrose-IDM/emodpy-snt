@@ -804,7 +804,7 @@ def add_epi_rtss(campaign, rtss_df):
 
     initial_effect_list = list(rtss_df['initial_effect'])
     decay_time_constant_list = list(rtss_df['decay_time_constant'])
-    duration_list = list(rtss_df['duration'])
+    duration_list = list(rtss_df['duration']) if 'duration' in rtss_df.columns else [-1] * len(rtss_df)
 
     for tp_time_trigger, coverage, vtype, event_name, std, init_eff, decay_t, start_day, duration in \
             zip(rtss_touchpoints, coverage_levels, rtss_types, rtss_event_names, std_dev_list,
@@ -969,9 +969,10 @@ def add_ds_vaccpmc(campaign, pmc_df, hfca):
     for i, tp in enumerate(df['pmc_touchpoints']):
         pmc_touchpoints_dict[f'{i}'] = tp
 
+    listening_durations = list(df['duration']) if 'duration' in df.columns else [-1] * len(df)
     add_vaccdrug_campaign(campaign, campaign_type='PMC', start_days=list(df['simday']),
                           coverages=df['coverage'],
-                          listening_durations=df['duration'],
+                          listening_durations=listening_durations,
                           target_group=pmc_touchpoints_dict,
                           vaccine_param_dict={'vacc_initial_effect': 0.80, 'vacc_box_duration': 20,  # old: 32, Manuela-updated for NGA: 20
                                               'vacc_decay_duration': 9},  # old: 10, Manuela-updated for NGA: 9
