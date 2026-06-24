@@ -126,6 +126,8 @@ def add_vaccdrug_campaign(campaign, campaign_type: str = 'SMC', start_days: list
         receiving_drugs_event_name = 'Received_Vehicle'
     if not receiving_vaccine_event_name:
         receiving_vaccine_event_name = f'Received_{campaign_type}_VaccDrug'
+    if listening_durations is None:
+        listening_durations = [-1] * len(coverages)
 
     if campaign_type == 'SMC':
         if receiving_drugs_event:
@@ -443,11 +445,12 @@ def add_vaccdrug_pmc(campaign, start_days: list, coverages: list,
 
     pmc_touchpoints = list(target_group.values())
     pmc_event_names = [f'PMC_{x + 1}' for x in range(len(pmc_touchpoints))]
-    if len(pmc_touchpoints) != len(coverages) or len(pmc_touchpoints) != len(delay_distribution_dict['delay_distribution_name']) or len(pmc_touchpoints) != len(listening_durations):
+    if len(pmc_touchpoints) != len(coverages) or len(pmc_touchpoints) != len(delay_distribution_dict['delay_distribution_name']) or len(pmc_touchpoints) != len(listening_durations) or len(pmc_touchpoints) != len(start_days):
         raise ValueError(f"Length of target_groups's values - {len(pmc_touchpoints)}, should be equal to "
                          f"length of coverages - "
-                         f"{len(coverages)} and length of the list of delay distributions "
-                         f"{len(delay_distribution_dict['delay_distribution_name'])} and length of listening durations "f"{len(listening_durations)} but it's not.\n")
+                         f"{len(coverages)} and length of the list of delay distributions - "
+                         f"{len(delay_distribution_dict['delay_distribution_name'])} and length of listening durations "f"{len(listening_durations)}  and length of start days - "
+                         f"{len(start_days)} but they are not all equal.\n")
 
 
     for i, (tp_time_trigger, start_day, duration, cov, event_name) in enumerate(zip(pmc_touchpoints, start_days, listening_durations, coverages, pmc_event_names)):
@@ -568,11 +571,12 @@ def add_vacc_pmc(campaign, start_days: list, coverages: list, target_group: dict
     pmc_touchpoints = list(target_group.values())
     pmc_event_names = [f'PMC_{x + 1}' for x in range(len(pmc_touchpoints))]
     vacc_pmc_offset = 17  # - x days since no drug clearing event, hence delayed efficacy
-    if len(pmc_touchpoints) != len(coverages) or len(pmc_touchpoints) != len(delay_distribution_dict['delay_distribution_name']) or len(pmc_touchpoints) != len(listening_durations):
+    if len(pmc_touchpoints) != len(coverages) or len(pmc_touchpoints) != len(delay_distribution_dict['delay_distribution_name']) or len(pmc_touchpoints) != len(listening_durations) or len(pmc_touchpoints) != len(start_days):
         raise ValueError(f"Length of target_groups's values - {len(pmc_touchpoints)}, should be equal to "
                          f"length of coverages - "
-                         f"{len(coverages)} and length of the list of delay distributions "
-                         f"{len(delay_distribution_dict['delay_distribution_name'])} and length of listening durations "f"{len(listening_durations)} but it's not.\n")
+                         f"{len(coverages)} and length of the list of delay distributions - "
+                         f"{len(delay_distribution_dict['delay_distribution_name'])} and length of listening durations "f"{len(listening_durations)}  and length of start days - "
+                         f"{len(start_days)} but they are not all equal.\n")
 
     for i, (tp_time_trigger, start_day, duration, cov, event_name) in enumerate(zip(pmc_touchpoints, start_days, listening_durations, coverages, pmc_event_names)):
         tp_time_trigger = tp_time_trigger - vacc_pmc_offset

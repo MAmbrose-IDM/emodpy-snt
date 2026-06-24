@@ -447,14 +447,10 @@ get_cumulative_burden_by_state = function(sim_output_filepath, experiment_name, 
                                                                         'direct_death_rate_1_U5', 'direct_death_rate_2_U5', 'all_death_rate_1_U5', 'all_death_rate_2_U5', 
                                                                         'direct_death_rate_mean_all', 'direct_death_rate_mean_U5', 'all_death_rate_mean_all', 'all_death_rate_mean_U5'))]
     
-    if(mean_across_seeds){
-      df_aggregated = df_aggregated %>% group_by(across(all_of(group_col))) %>%
-        summarise_all(mean, na.rm=TRUE)
-    }
     write.csv(df_aggregated, output_filename, row.names=FALSE)
   }
   if(mean_across_seeds){
-    df_aggregated = df_aggregated %>% group_by(State) %>%
+    df_aggregated = df_aggregated %>% group_by(across(all_of(group_col))) %>%
       summarise_all(mean, na.rm=TRUE)
   }
   return(df_aggregated)
